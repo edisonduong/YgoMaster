@@ -677,30 +677,10 @@ namespace YgomGame.Room
         static IntPtr activeViewController;
         static IntPtr activeButton;
         static DuelSettingsManager duelSettingsManager = new DuelSettingsManager();
-        enum RoomCreateHackMode
-        {
-            None,
-            DuelTypeMenu,
-            DuelStarter
-        }
-        static RoomCreateHackMode nextHackMode;
-        static RoomCreateHackMode activeHackMode;
-        static IntPtr previousDuelTypeMenuViewController;
-        static IntPtr duelTypeMenuDuelStarterButton;
-        static IntPtr duelTypeMenuRoomButton;
 
         static Dictionary<IntPtr, string[]> buttonsActionSheets = new Dictionary<IntPtr, string[]>();
 
-        public static bool IsNextInstanceDuelTypeMenu
-        {
-            get { return nextHackMode == RoomCreateHackMode.DuelTypeMenu; }
-            set { nextHackMode = value ? RoomCreateHackMode.DuelTypeMenu : RoomCreateHackMode.None; }
-        }
-        public static bool IsNextInstanceHacked
-        {
-            get { return nextHackMode == RoomCreateHackMode.DuelStarter; }
-            set { nextHackMode = value ? RoomCreateHackMode.DuelStarter : RoomCreateHackMode.None; }
-        }
+        public static bool IsNextInstanceHacked = false;
         public static bool HasInstantDuelStarted = false;
         public static bool IsHacked
         {
@@ -710,20 +690,7 @@ namespace YgomGame.Room
                 {
                     IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
                     IntPtr roomView = YgomSystem.UI.ViewControllerManager.GetViewController(manager, YgomGame.Room.RoomCreateViewController.ClassInfo.IL2Typeof());
-                    return activeHackMode == RoomCreateHackMode.DuelStarter && roomView != IntPtr.Zero && roomView == activeViewController;
-                }
-                return false;
-            }
-        }
-        static bool IsCustomRoomCreatePage
-        {
-            get
-            {
-                if (activeViewController != IntPtr.Zero)
-                {
-                    IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-                    IntPtr roomView = YgomSystem.UI.ViewControllerManager.GetViewController(manager, YgomGame.Room.RoomCreateViewController.ClassInfo.IL2Typeof());
-                    return activeHackMode != RoomCreateHackMode.None && roomView != IntPtr.Zero && roomView == activeViewController;
+                    return roomView != IntPtr.Zero && roomView == activeViewController;
                 }
                 return false;
             }
@@ -766,72 +733,43 @@ namespace YgomGame.Room
 
         static void OnCreatedView(IntPtr thisPtr)
         {
-            if (nextHackMode == RoomCreateHackMode.None)
+            if (!IsNextInstanceHacked)
             {
                 activeViewController = IntPtr.Zero;
-                activeHackMode = RoomCreateHackMode.None;
-                previousDuelTypeMenuViewController = IntPtr.Zero;
                 hookOnCreatedView.Original.Invoke(thisPtr);
                 return;
             }
-            activeHackMode = nextHackMode;
-            nextHackMode = RoomCreateHackMode.None;
+            IsNextInstanceHacked = false;
             activeViewController = thisPtr;
 
             hookOnCreatedView.Original.Invoke(thisPtr);
-
-            ApplyHackTitleAndButtonText(thisPtr);
-        }
-
-        static void ApplyHackTitleAndButtonText(IntPtr thisPtr)
-        {
+            
             // Modify the title of the view
             IntPtr titleObj = UnityEngine.GameObject.FindGameObjectByName(UnityEngine.Component.GetGameObject(thisPtr), "NameText");
             IntPtr titleComponent = UnityEngine.GameObject.GetComponent(titleObj, bindingTextType);
-            YgomSystem.UI.BindingTextMeshProUGUI.SetTextId(titleComponent, activeHackMode == RoomCreateHackMode.DuelTypeMenu ?
-                ClientSettings.CustomTextDuelStarterPveOrPvpTitle : ClientSettings.CustomTextDuelStarterTitle);
+            YgomSystem.UI.BindingTextMeshProUGUI.SetTextId(titleComponent, ClientSettings.CustomTextDuelStarterTitle);
 
             // Modify the text of the button on the bottom right (v1.2.0 changed from "OKButton" to "ButtonOK")
             IntPtr duelStartButtonObj = UnityEngine.GameObject.FindGameObjectByName(UnityEngine.Component.GetGameObject(thisPtr), "ButtonOK");
             IntPtr duelStartButtonTextObj = UnityEngine.GameObject.FindGameObjectByName(duelStartButtonObj, "TextTMP");
             IntPtr duelStartButtonTextComponent = UnityEngine.GameObject.GetComponent(duelStartButtonTextObj, bindingTextType);
-            YgomSystem.UI.BindingTextMeshProUGUI.SetTextId(duelStartButtonTextComponent, activeHackMode == RoomCreateHackMode.DuelTypeMenu ?
-                ClientSettings.CustomTextOK : ClientSettings.CustomTextDuelStarterDuelButton);
+            YgomSystem.UI.BindingTextMeshProUGUI.SetTextId(duelStartButtonTextComponent, ClientSettings.CustomTextDuelStarterDuelButton);
         }
 
         public static void NotificationStackRemove(IntPtr thisPtr)
         {
             if (activeViewController == thisPtr)
             {
-                if (activeHackMode == RoomCreateHackMode.DuelStarter)
-                {
-                    duelSettingsManager.DuelSettingsFromUI();
-                    if (previousDuelTypeMenuViewController != IntPtr.Zero)
-                    {
-                        activeViewController = previousDuelTypeMenuViewController;
-                        activeHackMode = RoomCreateHackMode.DuelTypeMenu;
-                        previousDuelTypeMenuViewController = IntPtr.Zero;
-                        return;
-                    }
-                }
+                duelSettingsManager.DuelSettingsFromUI();
                 activeViewController = IntPtr.Zero;
-                activeHackMode = RoomCreateHackMode.None;
-                previousDuelTypeMenuViewController = IntPtr.Zero;
             }
         }
 
         static void SetupData(IntPtr thisPtr)
         {
-            if (activeViewController != IntPtr.Zero && thisPtr == activeViewController && activeHackMode != RoomCreateHackMode.None)
+            if (IsHacked)
             {
-                if (activeHackMode == RoomCreateHackMode.DuelTypeMenu)
-                {
-                    InitDuelTypeMenuButtons(thisPtr);
-                }
-                else
-                {
-                    duelSettingsManager.InitButtons(thisPtr);
-                }
+                duelSettingsManager.InitButtons(thisPtr);
             }
             else
             {
@@ -841,15 +779,7 @@ namespace YgomGame.Room
 
         static void CallAPIRoomCreate(IntPtr thisPtr)
         {
-            if (activeHackMode == RoomCreateHackMode.DuelTypeMenu)
-            {
-                IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-                if (manager != IntPtr.Zero)
-                {
-                    YgomSystem.UI.ViewControllerManager.PopChildViewController(manager);
-                }
-            }
-            else if (IsHacked)
+            if (IsHacked)
             {
                 // Need to show loading wheel to block input / prevent multiple Solo.start (if this fails it'll double stack a Solo/SoloStartProduction and get softlocked after the duel)
                 YgomGame.Menu.ProfileViewController.ShowLoading();
@@ -972,133 +902,9 @@ namespace YgomGame.Room
             return newButton;
         }
 
-        static void InitDuelTypeMenuButtons(IntPtr viewController)
-        {
-            buttonsActionSheets.Clear();
-            duelTypeMenuDuelStarterButton = IntPtr.Zero;
-            duelTypeMenuRoomButton = IntPtr.Zero;
-            IL2ListExplicit infosList = new IL2ListExplicit(IntPtr.Zero, templateInfoClass, true);
-            fieldInfos.SetValue(viewController, infosList.ptr);
-            AddLabel(infosList, ClientSettings.CustomTextDuelStarterPveOrPvpTitle);
-            duelTypeMenuDuelStarterButton = AddButtonString(infosList, "DuelStarter", ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE, null);
-            if (!string.IsNullOrEmpty(ClientSettings.MultiplayerToken))
-            {
-                duelTypeMenuRoomButton = AddButtonString(infosList, "DuelRoom", ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP, null);
-            }
-        }
-
-        static bool HandleDuelTypeMenuButtonClick(IntPtr buttonPtr)
-        {
-            if (buttonPtr == duelTypeMenuDuelStarterButton)
-            {
-                OpenOriginalDuelStarterMenu();
-                return true;
-            }
-            if (buttonPtr == duelTypeMenuRoomButton)
-            {
-                OpenOriginalRoomMenu();
-                return true;
-            }
-            return false;
-        }
-
-        static void CloseDuelTypeMenu()
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                activeViewController = IntPtr.Zero;
-                activeHackMode = RoomCreateHackMode.None;
-                previousDuelTypeMenuViewController = IntPtr.Zero;
-                YgomSystem.UI.ViewControllerManager.PopChildViewController(manager);
-            }
-        }
-
-        static void OpenOriginalDuelStarterMenu()
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                previousDuelTypeMenuViewController = activeHackMode == RoomCreateHackMode.DuelTypeMenu ? activeViewController : IntPtr.Zero;
-                IsNextInstanceHacked = true;
-                YgomSystem.UI.ViewControllerManager.PushChildViewController(manager, "Room/RoomCreate");
-            }
-        }
-
-        static void OpenOriginalRoomMenu()
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                int roomId = YgomSystem.Utility.ClientWork.GetByJsonPath<int>("Room.room_info.room_id");
-                csbool isMember = YgomSystem.Utility.ClientWork.GetByJsonPath<csbool>("Room.room_info.is_join_player");
-                CloseDuelTypeMenu();
-                if (roomId != 0)
-                {
-                    YgomSystem.UI.ViewControllerManager.PushChildViewController(manager, "Room/Room", new Dictionary<string, object>()
-                    {
-                        { "Mode", isMember ? YgomGame.Room.RoomEntryViewController.Mode.NORMAL : YgomGame.Room.RoomEntryViewController.Mode.SPECTER }
-                    });
-                }
-                else
-                {
-                    YgomGame.Menu.ActionSheetViewController.Open(YgomSystem.Utility.TextData.GetText("IDS_ROOM.ROOM_MATCH"),
-                        new string[]
-                        {
-                            YgomSystem.Utility.TextData.GetText("IDS_ROOM.ROOM_CREATE"),
-                            YgomSystem.Utility.TextData.GetText("IDS_ROOM.ROOM_ENTRY"),
-                            YgomSystem.Utility.TextData.GetText("IDS_ROOM.SPECTATE")
-                        },
-                        OnClickOriginalRoomMatchMenuItem);
-                }
-            }
-        }
-
-        static Action<IntPtr, int> OnClickOriginalRoomMatchMenuItem = OnClickOriginalRoomMatchMenuItemImpl;
-        static void OnClickOriginalRoomMatchMenuItemImpl(IntPtr ctx, int index)
-        {
-            switch (index)
-            {
-                case 0:
-                    OpenOriginalRoomCreateMenu();
-                    break;
-                case 1:
-                    OpenOriginalRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode.NORMAL);
-                    break;
-                case 2:
-                    OpenOriginalRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode.SPECTER);
-                    break;
-            }
-        }
-
-        static void OpenOriginalRoomCreateMenu()
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                activeViewController = IntPtr.Zero;
-                activeHackMode = RoomCreateHackMode.None;
-                YgomSystem.UI.ViewControllerManager.PushChildViewController(manager, "Room/RoomCreate");
-            }
-        }
-
-        static void OpenOriginalRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode mode)
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                activeViewController = IntPtr.Zero;
-                activeHackMode = RoomCreateHackMode.None;
-                YgomSystem.UI.ViewControllerManager.PushChildViewController(manager, "Room/RoomEntry", new Dictionary<string, object>()
-                {
-                    { "Mode", mode }
-                });
-            }
-        }
-
         static void OnClick(IntPtr buttonPtr)
         {
-            if (IsCustomRoomCreatePage)
+            if (IsHacked)
             {
                 // NOTE: This type checking is required as the OnClick RVA is shared with multiple functions
                 IntPtr klass = Import.Object.il2cpp_object_get_class(buttonPtr);
@@ -1109,11 +915,7 @@ namespace YgomGame.Room
                 if (klass != IntPtr.Zero)
                 {
                     activeButton = buttonPtr;
-                    if (activeHackMode == RoomCreateHackMode.DuelTypeMenu && HandleDuelTypeMenuButtonClick(buttonPtr))
-                    {
-                        return;
-                    }
-                    if (activeHackMode == RoomCreateHackMode.DuelStarter && duelSettingsManager.HandleButtonClick(buttonPtr))
+                    if (duelSettingsManager.HandleButtonClick(buttonPtr))
                     {
                         return;
                     }
@@ -2300,8 +2102,22 @@ namespace YgomSystem.UI
                 string prefabpath = new IL2String(prefabpathPtr).ToString();
                 if (!Program.IsLive && prefabpath == "Colosseum/Colosseum")
                 {
-                    YgomGame.Room.RoomCreateViewController.IsNextInstanceDuelTypeMenu = true;
-                    prefabpathPtr = new IL2String("Room/RoomCreate").ptr;
+                    if (string.IsNullOrEmpty(ClientSettings.MultiplayerToken))
+                    {
+                        // Redirect the home screen "DUEL" button to RoomCreate
+                        YgomGame.Room.RoomCreateViewController.IsNextInstanceHacked = true;
+                        prefabpathPtr = new IL2String("Room/RoomCreate").ptr;
+                    }
+                    else
+                    {
+                        YgomGame.Menu.CommonDialogViewController.OpenYesNoConfirmationDialog(
+                            ClientSettings.CustomTextDuelStarterPveOrPvpTitle,
+                            ClientSettings.CustomTextDuelStarterPveOrPvpText,
+                            OpenDuelStarterMenu, OpenRoomMenu, null,
+                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE,
+                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP);
+                        return;
+                    }
                 }
             }
             hookPushChildViewController.Original.Invoke(thisPtr, prefabpathPtr);
@@ -2356,27 +2172,6 @@ namespace YgomSystem.UI
             return result != null ? result.ptr : IntPtr.Zero;
         }
 
-        static void OpenRoomCreateMenu()
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                PushChildViewController(manager, "Room/RoomCreate");
-            }
-        }
-
-        static void OpenRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode mode)
-        {
-            IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
-            if (manager != IntPtr.Zero)
-            {
-                PushChildViewController(manager, "Room/RoomEntry", new Dictionary<string, object>()
-                {
-                    { "Mode", mode }
-                });
-            }
-        }
-
         static Action OpenRoomMenu = () =>
         {
             IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
@@ -2414,13 +2209,19 @@ namespace YgomSystem.UI
                 switch (index)
                 {
                     case 0:
-                        OpenRoomCreateMenu();
+                        PushChildViewController(manager, "Room/RoomCreate");
                         break;
                     case 1:
-                        OpenRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode.NORMAL);
+                        PushChildViewController(manager, "Room/RoomEntry", new Dictionary<string, object>()
+                        {
+                            { "Mode", YgomGame.Room.RoomEntryViewController.Mode.NORMAL }
+                        });
                         break;
                     case 2:
-                        OpenRoomEntryMenu(YgomGame.Room.RoomEntryViewController.Mode.SPECTER);
+                        PushChildViewController(manager, "Room/RoomEntry", new Dictionary<string, object>()
+                        {
+                            { "Mode", YgomGame.Room.RoomEntryViewController.Mode.SPECTER }
+                        });
                         break;
                 }
             }
