@@ -940,6 +940,7 @@ namespace YgomSystem.Network
                 { "Billing.purchase", ClientSettings.ServerUrl },
                 { "Billing.re_store", ClientSettings.ServerUrl },
                 { "Billing.reservation", ClientSettings.ServerUrl },
+                { "YgoMaster.unlock_all_cards", ClientSettings.ServerUrl },
             };
             YgomSystem.Utility.ClientWork.UpdateJson("$.Server.urls", MiniJSON.Json.Serialize(urls));
             YgomSystem.Utility.ClientWork.UpdateValue("$.Server.url", ClientSettings.ServerUrl);

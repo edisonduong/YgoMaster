@@ -990,6 +990,7 @@ namespace YgomGame.SubMenu
             }
             else
             {
+                SubMenuViewController.AddMenuItem(thisPtr, "Unlock all cards", OnUnlockAllCards);
                 SubMenuViewController.AddMenuItem(thisPtr, ClientSettings.CustomTextDeckEditLoadFromClipboard, OnLoadFromClipboard);
                 SubMenuViewController.AddMenuItem(thisPtr, ClientSettings.CustomTextDeckEditToClipboard, OnSaveToClipboardYDKe);
                 SubMenuViewController.AddMenuItem(thisPtr, ClientSettings.CustomTextDeckEditLoadFile, OnLoad);
@@ -998,6 +999,28 @@ namespace YgomGame.SubMenu
                 SubMenuViewController.AddMenuItem(thisPtr, ClientSettings.CustomTextDeckEditClearDeck, OnClear);
                 SubMenuViewController.AddMenuItem(thisPtr, ClientSettings.CustomTextDeckEditCardCollectionStats, OnCardCollectionStats);
             }
+        }
+
+        static void OnUnlockAllCards()
+        {
+            YgomGame.Menu.CommonDialogViewController.OpenYesNoConfirmationDialog(
+                ClientSettings.CustomTextConfirmation,
+                "Add 3 normal, shine, and royal copies of every card to this local YgoMaster player?",
+                OnUnlockAllCardsConfirmed,
+                null,
+                null,
+                ClientSettings.CustomTextYes,
+                ClientSettings.CustomTextNo);
+        }
+
+        static void OnUnlockAllCardsConfirmed()
+        {
+            YgomSystem.Network.Request.Entry("YgoMaster.unlock_all_cards", "{}");
+            YgomGame.Menu.CommonDialogViewController.OpenConfirmationDialog(
+                ClientSettings.CustomTextInfo,
+                "All cards have been unlocked. Reopen the deck editor if the list was already open.",
+                ClientSettings.CustomTextOK,
+                null);
         }
 
         static Action OnSetCollectionMyEntire = () =>
