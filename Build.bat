@@ -11,20 +11,29 @@ echo Compiling YgoMasterLoader (C++)
 echo.
 
 REM Compile YgoMasterLoader using cl (requires Visual Studio with C++ compilers) (TODO: Improve this... maybe also check vswhere.exe)
+set BATPATH=%ProgramW6432%\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat
+if exist "%BATPATH%" ( call "%BATPATH%" amd64 & goto cppCompilerFound )
+set BATPATH=%ProgramW6432%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat
+if exist "%BATPATH%" ( call "%BATPATH%" amd64 & goto cppCompilerFound )
+set BATPATH=%ProgramW6432%\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvarsall.bat
+if exist "%BATPATH%" ( call "%BATPATH%" amd64 & goto cppCompilerFound )
+set BATPATH=%ProgramW6432%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+if exist "%BATPATH%" ( call "%BATPATH%" amd64 & goto cppCompilerFound )
 set BATPATH=%ProgramW6432%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat
-if exist "%BATPATH%" ( call "%BATPATH%" amd64 ) else ^
-if defined VS190COMNTOOLS ( call "%VS190COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS180COMNTOOLS ( call "%VS180COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS170COMNTOOLS ( call "%VS170COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS160COMNTOOLS ( call "%VS160COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS150COMNTOOLS ( call "%VS150COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS140COMNTOOLS ( call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS130COMNTOOLS ( call "%VS130COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS120COMNTOOLS ( call "%VS120COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS110COMNTOOLS ( call "%VS110COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
-if defined VS100COMNTOOLS ( call "%VS100COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 ) else ^
+if exist "%BATPATH%" ( call "%BATPATH%" amd64 & goto cppCompilerFound )
+if defined VS190COMNTOOLS ( call "%VS190COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS180COMNTOOLS ( call "%VS180COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS170COMNTOOLS ( call "%VS170COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS160COMNTOOLS ( call "%VS160COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS150COMNTOOLS ( call "%VS150COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS140COMNTOOLS ( call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS130COMNTOOLS ( call "%VS130COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS120COMNTOOLS ( call "%VS120COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS110COMNTOOLS ( call "%VS110COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
+if defined VS100COMNTOOLS ( call "%VS100COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64 & goto cppCompilerFound )
 goto cppCompilerNotFound
 
+:cppCompilerFound
 cd YgoMasterLoader
 cl YgoMasterLoader.cpp /LD /DWITHDETOURS /Fe:../YgoMaster/YgoMasterLoader.dll
 cl MonoRun.cpp /Fe:../YgoMaster/MonoRun.exe
