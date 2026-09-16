@@ -353,6 +353,8 @@ namespace YgoMasterClient
                 nativeTypes.Add(typeof(WallpaperCycle));
                 nativeTypes.Add(typeof(CustomBackground));
                 nativeTypes.Add(typeof(HomeViewTweaks));
+                // Colosseum view tweaks: static constructor will install hooks for Colosseum UI
+                nativeTypes.Add(typeof(ColosseumViewTweaks));
                 nativeTypes.Add(typeof(FixDeleteFile));
                 nativeTypes.Add(typeof(FixLanguage));
                 nativeTypes.Add(typeof(SoundInterceptor));
