@@ -67,6 +67,8 @@ namespace YgoMasterClient
         public static float TradeActionDelayInSeconds;
         public static bool PvpLogToConsole;
         public static bool PvpLogToFile;
+        public static bool RequestLogEnabled;
+        public static string RequestLogFile;
         public static bool PvpDuelTapSyncEnabled;
         public static float EmoteDurationInSeconds;
         public static GameLauncherMode LaunchMode;
@@ -192,6 +194,12 @@ namespace YgoMasterClient
             TradeActionDelayInSeconds = Utils.GetValue<float>(data, "TradeActionDelayInSeconds");
             PvpLogToConsole = Utils.GetValue<bool>(data, "PvpLogToConsole");
             PvpLogToFile = Utils.GetValue<bool>(data, "PvpLogToFile");
+            RequestLogEnabled = Utils.GetValue<bool>(data, "RequestLogEnabled");
+            RequestLogFile = Utils.GetValue<string>(data, "RequestLogFile");
+            if (string.IsNullOrEmpty(RequestLogFile))
+            {
+                RequestLogFile = Path.Combine(Program.ClientDataDir, "requests.log");
+            }
             PvpDuelTapSyncEnabled = Utils.GetValue<bool>(data, "PvpDuelTapSyncEnabled");
             EmoteDurationInSeconds = Utils.GetValue<float>(data, "EmoteDurationInSeconds");
             LaunchMode = Utils.GetValue<GameLauncherMode>(data, "LaunchMode");
