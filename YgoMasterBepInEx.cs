@@ -1,3 +1,4 @@
+#if false
 using System;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
@@ -72,3 +73,4 @@ namespace YgoMasterBepInEx
         static extern IntPtr LoadLibrary(string lpFileName);
     }
 }
+#endif
