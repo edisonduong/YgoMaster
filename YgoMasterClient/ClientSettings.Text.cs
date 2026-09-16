@@ -96,6 +96,10 @@ namespace YgoMasterClient
         /// <summary>
         /// Decks
         /// </summary>
+        public static string CustomTextDuelStarterFindMatchText;
+        /// <summary>
+        /// Find Match
+        /// </summary>
         public static string CustomTextDuelStarterDecks;
         /// <summary>
         /// Deck
@@ -589,6 +593,7 @@ namespace YgoMasterClient
             CustomTextDuelStarterPveOrPvpText = Utils.GetValue<string>(data, "CustomTextDuelStarterPveOrPvpText");
             CustomTextDuelStarterPveOrPvpTextBtnPvP = Utils.GetValue<string>(data, "CustomTextDuelStarterPveOrPvpTextBtnPvP");
             CustomTextDuelStarterPveOrPvpTextBtnPvE = Utils.GetValue<string>(data, "CustomTextDuelStarterPveOrPvpTextBtnPvE");
+            CustomTextDuelStarterFindMatchText = Utils.GetValue<string>(data, "CustomTextDuelStarterFindMatchText");
             CustomTextDuelStarterDecks = Utils.GetValue<string>(data, "CustomTextDuelStarterDecks");
             CustomTextDuelStarterDeck = Utils.GetValue<string>(data, "CustomTextDuelStarterDeck");
             CustomTextDuelStarterLoadDeckFrom = Utils.GetValue<string>(data, "CustomTextDuelStarterLoadDeckFrom");
