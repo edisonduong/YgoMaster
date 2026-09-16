@@ -6,7 +6,7 @@
     "MultiplayerPvpClientConnectIP": "{SessionServerIP}",
     "MultiplayerPvpClientConnectPort": 0,// A value of 0 will use SessionServerPort
     "BindIP": "http://{BaseIP}:{BasePort}/",
-    "MultiplayerEnabled": false,// [WARNING] Only use if you know what you're doing
+    "MultiplayerEnabled": true,// [WARNING] Only use if you know what you're doing
     "MultiplayerAllowUserSpecifiedPlayerCode": true,
     "MultiplayerTokenPrefixSecret": "",
     "MultiplayerMaxTokensPerIP": 6,

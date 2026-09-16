@@ -6,7 +6,7 @@
     "SessionServerIP": "{BaseIP}",
     "ServerUrl": "http://localhost:{ProxyPort}/ygo",
     "ServerPollUrl": "http://localhost:{ProxyPort}/ygo/poll",
-    "MultiplayerToken": "",// [WARNING] Only use this if you know what you're doing
+    "MultiplayerToken": "test1",// [WARNING] Only use this if you know what you're doing
     "MultiplayerPingTimeoutInSeconds": 90,
     "MultiplayerConnectDelayInSeconds": 10,
     "MultiplayerNoDelay": true,
