@@ -90,16 +90,48 @@ namespace YgoMasterClient
         TextBox output;
         ListBox commandList;
 
-        // Curated list of commonly used dev/diagnostic commands.
-        // Anything else can still be run via the freeform input box below.
+        // Full list of currently implemented top-level console commands from ConsoleHelper.
+        // Commands that require arguments include a sample payload that can be edited before running.
         static readonly Tuple<string, string>[] presetCommands = new Tuple<string, string>[]
         {
-            Tuple.Create("Dump home hierarchy", "dumphome"),
-            Tuple.Create("Reload text data (IDS)", "textreload"),
-            Tuple.Create("Reload solo data", "soloreload"),
-            Tuple.Create("Reload background", "bgreload"),
-            Tuple.Create("View controller args", "vcargs"),
-            Tuple.Create("Log num secrets", "num_secrets"),
+            Tuple.Create("classes - dump Assembly-CSharp class list", "classes"),
+            Tuple.Create("methods - dump methods on class (sample)", "methods TitleViewController"),
+            Tuple.Create("hierarchy - dump active UI hierarchy JSON", "hierarchy"),
+            Tuple.Create("dumpassets - dump tracked raw asset paths", "dumpassets"),
+            Tuple.Create("itemid - build IDS_ITEM value dumps", "itemid"),
+            Tuple.Create("itemid_old - legacy IDS_ITEM dump flow", "itemid_old"),
+            Tuple.Create("itemid_enum - generate IDS_ITEM enum text", "itemid_enum"),
+            Tuple.Create("packnames - list card pack names", "packnames"),
+            Tuple.Create("packimages - discover/write pack image dump", "packimages"),
+            Tuple.Create("text - read one IDS value (sample)", "text IDS_CARD.STYLE3"),
+            Tuple.Create("textenum - dump one IDS enum (sample)", "textenum IDS_CARD"),
+            Tuple.Create("textdump - dump all IDS enums", "textdump"),
+            Tuple.Create("textreload - reload custom IDS data", "textreload"),
+            Tuple.Create("soloreload - reload custom solo data", "soloreload"),
+            Tuple.Create("resultcodes - extract network result-code enums", "resultcodes"),
+            Tuple.Create("locate - resolve /LocalData/ asset path (sample)", "locate Card/Images/Illust/tcg/46986414"),
+            Tuple.Create("locateraw - resolve path without auto-convert (sample)", "locateraw Card/Images/Illust/tcg/46986414"),
+            Tuple.Create("crc - print assetbundle disk path, select file if found (sample)", "crc Card/Images/Illust/tcg/46986414"),
+            Tuple.Create("carddata_path - print card-data IntIdPath", "carddata_path"),
+            Tuple.Create("carddata - dump internal card-data files", "carddata"),
+            Tuple.Create("updatediff - dump refs/helpers for client update diffing", "updatediff"),
+            Tuple.Create("updatejson - update ClientWork by path/value (sample)", "updatejson $.Master.DebugFlag 1"),
+            Tuple.Create("updatejsonraw - update ClientWork with raw JSON (sample)", "updatejsonraw {\"Master\":{\"DebugFlag\":1}}"),
+            Tuple.Create("logjson - print ClientWork JSON at path (sample)", "logjson $.Master"),
+            Tuple.Create("cardswithart - list art cards missing in CardRare", "cardswithart"),
+            Tuple.Create("dumphome - dump last-seen home UI hierarchy", "dumphome"),
+            Tuple.Create("vcargs - print top view-controller args", "vcargs"),
+            Tuple.Create("pvpops - generate PvpOperation enum names", "pvpops"),
+            Tuple.Create("unityplayerupdate - refresh UnityPlayer addresses from PDB", "unityplayerupdate"),
+            Tuple.Create("bgreload - reload custom background assets", "bgreload"),
+            Tuple.Create("gacha_get_probability - call gacha probability API (sample)", "gacha_get_probability 1 1"),
+            Tuple.Create("solo_clear - clear all solo progression data", "solo_clear"),
+            Tuple.Create("dismantle_all_cards - mass dismantle by rarity (sample)", "dismantle_all_cards UltraRare"),
+            Tuple.Create("num_secrets - log unlocked secret-pack count", "num_secrets"),
+            Tuple.Create("craft_secrets - craft unlock cards for secret packs", "craft_secrets"),
+            Tuple.Create("auto_free_pull - open all available free pulls", "auto_free_pull"),
+            Tuple.Create("card_base_data_size - print CardBaseData struct size", "card_base_data_size"),
+            Tuple.Create("pop - internal debug pop helper", "pop"),
         };
 
         public DebugToolsForm()

@@ -33,6 +33,8 @@ namespace YgoMasterClient
         static float[] audioBufferTLS;
         static IntPtr audioBufferIL2CPP;
         static Dictionary<string, List<CustomAssetLoadRequest>> customAssetLoadRequests = new Dictionary<string, List<CustomAssetLoadRequest>>();
+        static readonly object trackedAssetPathsLock = new object();
+        static readonly HashSet<string> trackedAssetPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         struct CustomAssetLoadRequest
         {
             public IntPtr CompleteHandler;
@@ -1923,6 +1925,7 @@ namespace YgoMasterClient
 
         static uint Load(IntPtr thisPtr, IntPtr path, IntPtr systemTypeInstance, IntPtr completeHandler, csbool disableErrorNotify)
         {
+            TrackAssetPath(path);
             if (ClientSettings.AssetHelperLog && path != IntPtr.Zero)
             {
                 Console.WriteLine(new IL2String(path).ToString());
@@ -1941,6 +1944,7 @@ namespace YgoMasterClient
 
         static uint LoadImmediate(IntPtr thisPtr, IntPtr path, IntPtr systemTypeInstance, IntPtr completeHandler, csbool disableErrorNotify)
         {
+            TrackAssetPath(path);
             if (ClientSettings.AssetHelperLog && path != IntPtr.Zero)
             {
                 Console.WriteLine(new IL2String(path).ToString() + " (LoadImmediate)");
@@ -2127,6 +2131,47 @@ namespace YgoMasterClient
             }
 
             return resourcePtr;
+        }
+
+        static void TrackAssetPath(IntPtr pathPtr)
+        {
+            if (pathPtr == IntPtr.Zero)
+            {
+                return;
+            }
+
+            TrackAssetPath(new IL2String(pathPtr).ToString());
+        }
+
+        static void TrackAssetPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            lock (trackedAssetPathsLock)
+            {
+                trackedAssetPaths.Add(path);
+            }
+        }
+
+        public static string DumpTrackedAssets()
+        {
+            string[] paths;
+            lock (trackedAssetPathsLock)
+            {
+                paths = trackedAssetPaths.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Tracked assets: " + paths.Length);
+            foreach (string path in paths)
+            {
+                sb.AppendLine(path);
+            }
+
+            return sb.ToString();
         }
 
         public static bool FileExists(string path)
