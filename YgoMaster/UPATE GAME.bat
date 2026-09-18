@@ -3,6 +3,12 @@
 set "SOURCE=C:\Users\Edison\Repos\YgoMaster\YgoMaster"
 set "DEST=C:\Program Files (x86)\Steam\steamapps\common\Yu-Gi-Oh!  Master Duel\YgoMaster"
 
+echo Stopping YgoMaster if running...
+taskkill /F /IM YgoMaster.exe >nul 2>&1
+taskkill /F /IM YgoMasterClient.exe >nul 2>&1
+taskkill /F /IM masterduel.exe >nul 2>&1
+
+echo.
 echo Copying YgoMaster files...
 echo.
 
