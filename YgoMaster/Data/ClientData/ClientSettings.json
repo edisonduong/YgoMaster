@@ -12,7 +12,6 @@
     "MultiplayerNoDelay": true,
     "MultiplayerLogConnectionState": false,
     "ClientSettingsTextFile": "Text/ClientSettings.en.json",
-    "ShowConsole": false,
     "LogIDs": false,
     "AssetHelperLog": false,
     "AssetHelperDump": false,

@@ -50,8 +50,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="YgoMasterClient\ColosseumViewTweaks.cs" />
+    <Compile Include="YgoMasterClient\DebugToolsForm.cs" />
     <Compile Include="YgoMasterClient\DuelTutorialSetting.cs" />
     <Compile Include="YgoMasterClient\FixDeleteFile.cs" />
+    <Compile Include="YgoMasterClient\GameObjectCloneUtils.cs" />
     <Compile Include="YgoMasterClient\HomeViewTweaks.cs" />
     <Compile Include="YgoMasterClient\CustomBackground.cs" />
     <Compile Include="YgoMasterClient\AudioLoader.cs" />

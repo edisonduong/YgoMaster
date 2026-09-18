@@ -182,10 +182,6 @@ namespace YgoMasterClient
                 {
                     throw new Exception("Failed to get server url settings");
                 }
-                if (ClientSettings.ShowConsole)
-                {
-                    ConsoleHelper.ShowConsole();
-                }
 
                 ClientSettings.InstantDuel = false;
                 string arg_cl = Environment.CommandLine;
@@ -353,6 +349,8 @@ namespace YgoMasterClient
                 nativeTypes.Add(typeof(WallpaperCycle));
                 nativeTypes.Add(typeof(CustomBackground));
                 nativeTypes.Add(typeof(HomeViewTweaks));
+                // Colosseum view tweaks: static constructor will install hooks for Colosseum UI
+                nativeTypes.Add(typeof(ColosseumViewTweaks));
                 nativeTypes.Add(typeof(FixDeleteFile));
                 nativeTypes.Add(typeof(FixLanguage));
                 nativeTypes.Add(typeof(SoundInterceptor));
@@ -422,10 +420,9 @@ namespace YgoMasterClient
                     AssetHelper.Init();
                 });
 
-                if (ClientSettings.ShowConsole)
-                {
-                    ConsoleHelper.Run();
-                }
+                #if DEBUG
+                DebugToolsGui.Show();
+#endif
             }
             catch (Exception e)
             {
