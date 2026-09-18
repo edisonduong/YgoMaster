@@ -99,6 +99,7 @@ namespace YgomGame.Solo
                             return true;
                         }
                     }
+
                 }
             }
             return false;
@@ -2025,6 +2026,7 @@ namespace YgomSystem.UI
         static IL2Method methodLoadViewControllerPrefab;
         static IL2Method methodGetViewControllerT;
         static Dictionary<IntPtr, IL2Method> methodGetViewControllerTInstances = new Dictionary<IntPtr, IL2Method>();
+        public static IntPtr LastViewControllerManager;
 
         delegate void Del_PushChildViewController(IntPtr thisPtr, IntPtr prefabpathPtr);
         static Hook<Del_PushChildViewController> hookPushChildViewController;
@@ -2071,7 +2073,9 @@ namespace YgomSystem.UI
                 }
 
             }
-            return hookLoadViewControllerPrefab.Original.Invoke(thisPtr, prefabpathPtr);
+            IntPtr result = hookLoadViewControllerPrefab.Original.Invoke(thisPtr, prefabpathPtr);
+            LastViewControllerManager = thisPtr;
+            return result;
         }
 
         public static IntPtr GetViewControllerManagerWithName(string name)
@@ -2097,29 +2101,33 @@ namespace YgomSystem.UI
 
         private static void PushChildViewControllerHook(IntPtr thisPtr, IntPtr prefabpathPtr)
         {
-            if (prefabpathPtr != IntPtr.Zero)
-            {
-                string prefabpath = new IL2String(prefabpathPtr).ToString();
-                if (!Program.IsLive && prefabpath == "Colosseum/Colosseum")
-                {
-                    if (string.IsNullOrEmpty(ClientSettings.MultiplayerToken))
-                    {
-                        // Redirect the home screen "DUEL" button to RoomCreate
-                        YgomGame.Room.RoomCreateViewController.IsNextInstanceHacked = true;
-                        prefabpathPtr = new IL2String("Room/RoomCreate").ptr;
-                    }
-                    else
-                    {
-                        YgomGame.Menu.CommonDialogViewController.OpenYesNoConfirmationDialog(
-                            ClientSettings.CustomTextDuelStarterPveOrPvpTitle,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpText,
-                            OpenDuelStarterMenu, OpenRoomMenu, null,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP);
-                        return;
-                    }
-                }
-            }
+            //if (prefabpathPtr != IntPtr.Zero)
+            //{
+            //    string prefabpath = new IL2String(prefabpathPtr).ToString();
+            //    Console.WriteLine("[ViewController] Opening: " + prefabpath);
+            //    if (!Program.IsLive && prefabpath == "Colosseum/Colosseum")
+            //    {
+            //        if (string.IsNullOrEmpty(ClientSettings.MultiplayerToken))
+            //        {
+            //            // Redirect the home screen "DUEL" button to RoomCreate
+            //            YgomGame.Room.RoomCreateViewController.IsNextInstanceHacked = true;
+            //            prefabpathPtr = new IL2String("Room/RoomCreate").ptr;
+            //        }
+            //        else
+            //        {
+            //            YgomGame.Menu.ActionSheetViewController.Open(
+            //                ClientSettings.CustomTextDuelStarterPveOrPvpTitle,
+            //                new string[]
+            //                {
+            //                    ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE,
+            //                    ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP,
+            //                    ClientSettings.CustomTextDuelStarterFindMatchText
+            //                },
+            //                OnClickDuelStarterMenu);
+            //            return;
+            //        }
+            //    }
+            //}
             hookPushChildViewController.Original.Invoke(thisPtr, prefabpathPtr);
         }
 
@@ -2201,6 +2209,31 @@ namespace YgomSystem.UI
         };
 
         static Action<IntPtr, int> OnClickRoomMatchMenuItem = OnClickRoomMatchMenuItemImpl;
+        static Action<IntPtr, int> OnClickDuelStarterMenu = OnClickDuelStarterMenuImpl;
+
+        static void OnClickDuelStarterMenuImpl(IntPtr ctx, int index)
+        {
+            switch (index)
+            {
+                case 0:
+                    OpenDuelStarterMenu();
+                    break;
+                case 1:
+                    OpenRoomMenu();
+                    break;
+                case 2:
+                    IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
+                    if (manager != IntPtr.Zero)
+                    {
+                        PushChildViewController(manager, "Room/RoomEntry", new Dictionary<string, object>()
+                        {
+                            { "Mode", YgomGame.Room.RoomEntryViewController.Mode.NORMAL }
+                        });
+                    }
+                    break;
+            }
+        }
+
         static void OnClickRoomMatchMenuItemImpl(IntPtr ctx, int index)
         {
             IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
@@ -2377,6 +2410,7 @@ namespace UnityEngine
         static IL2Method methodGetComponent;
         static IL2Method methodAddComponent;
         static IL2Method methodGetActiveSelf;
+        static IL2Method methodGetActiveInHierarchy;
         static IL2Method methodSetActive;
 
         static GameObject()
@@ -2391,6 +2425,7 @@ namespace UnityEngine
             methodGetComponent = classInfo.GetMethod("GetComponent", x => x.GetParameters().Length == 1 && x.GetParameters()[0].Type.Name == typeof(Type).FullName);
             methodAddComponent = classInfo.GetMethod("AddComponent", x => x.GetParameters().Length == 1 && x.GetParameters()[0].Type.Name == typeof(Type).FullName);
             methodGetActiveSelf = classInfo.GetProperty("activeSelf").GetGetMethod();
+            methodGetActiveInHierarchy = classInfo.GetProperty("activeInHierarchy").GetGetMethod();
             methodSetActive = classInfo.GetMethod("SetActive");
         }
 
@@ -2595,6 +2630,12 @@ namespace UnityEngine
             return result != null && result.GetValueRef<bool>();
         }
 
+        public static bool IsActiveInHierarchy(IntPtr thisPtr)
+        {
+            IL2Object result = methodGetActiveInHierarchy.Invoke(thisPtr);
+            return result != null && result.GetValueRef<bool>();
+        }
+
         public static void SetActive(IntPtr thisPtr, bool value)
         {
             methodSetActive.Invoke(thisPtr, new IntPtr[] { new IntPtr(&value) });
@@ -2742,6 +2783,9 @@ namespace UnityEngine
             List<object> childrenList = new List<object>();
             IntPtr obj = Component.GetGameObject(transform);
             result["name"] = UnityObject.GetName(obj);
+            result["activeSelf"] = GameObject.IsActive(obj);
+            result["activeInHierarchy"] = GameObject.IsActiveInHierarchy(obj);
+            result["transform"] = GetTransformData(transform);
             result["components"] = componentsList;
             result["children"] = childrenList;
             IntPtr[] components = GameObject.GetComponents(obj);
@@ -2754,6 +2798,11 @@ namespace UnityEngine
                     IL2Class componentClassInfo = new IL2Class(Import.Object.il2cpp_object_get_class(component));
                     componentData["type"] = componentClassInfo.Name;
                     componentData["members"] = componentMembers;
+                    Dictionary<string, object> componentProperties = GetComponentProperties(component, componentClassInfo);
+                    if (componentProperties.Count > 0)
+                    {
+                        componentData["properties"] = componentProperties;
+                    }
                     componentsList.Add(componentData);
                     IL2Class classInHierarchy = componentClassInfo;
                     while (classInHierarchy != null)
@@ -2802,6 +2851,132 @@ namespace UnityEngine
             }
             return result;
         }
+
+        static Dictionary<string, object> GetTransformData(IntPtr transform)
+        {
+            Dictionary<string, object> data = new Dictionary<string, object>();
+            data["localPosition"] = ToDictionary(GetLocalPosition(transform));
+            data["localScale"] = ToDictionary(GetLocalScale(transform));
+            data["siblingIndex"] = GetSiblingIndex(transform);
+
+            IL2Class transformClassInfo = new IL2Class(Import.Object.il2cpp_object_get_class(transform));
+            if (transformClassInfo.Name == "RectTransform")
+            {
+                Dictionary<string, object> rectTransform = GetProperties(transform, transformClassInfo,
+                    new string[] { "anchorMin", "anchorMax", "anchoredPosition", "sizeDelta", "pivot" });
+                data["rectTransform"] = rectTransform;
+            }
+            return data;
+        }
+
+        static Dictionary<string, object> GetComponentProperties(IntPtr component, IL2Class componentClassInfo)
+        {
+            List<string> propertyNames = new List<string> { "text", "color", "sprite", "enabled" };
+            switch (componentClassInfo.Name)
+            {
+                case "Canvas":
+                    propertyNames.AddRange(new string[] { "renderMode", "pixelPerfect", "scaleFactor", "sortingOrder", "sortingLayerID", "overrideSorting" });
+                    break;
+                case "CanvasGroup":
+                    propertyNames.AddRange(new string[] { "alpha", "interactable", "blocksRaycasts", "ignoreParentGroups" });
+                    break;
+                case "CanvasScaler":
+                    propertyNames.AddRange(new string[] { "uiScaleMode", "referenceResolution", "screenMatchMode", "matchWidthOrHeight" });
+                    break;
+            }
+            return GetProperties(component, componentClassInfo, propertyNames.ToArray());
+        }
+
+        static Dictionary<string, object> GetProperties(IntPtr component, IL2Class componentClassInfo, string[] propertyNames)
+        {
+            Dictionary<string, object> values = new Dictionary<string, object>();
+            foreach (string propertyName in propertyNames)
+            {
+                IL2Property property = FindProperty(componentClassInfo, propertyName);
+                if (property == null || property.GetGetMethod() == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    object value = GetPropertyValue(component, property);
+                    if (value != null)
+                    {
+                        values[propertyName] = value;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("[HierarchyDump] Failed to read " + componentClassInfo.Name + "." + propertyName + ": " + e.Message);
+                }
+            }
+            return values;
+        }
+
+        static IL2Property FindProperty(IL2Class classInfo, string name)
+        {
+            while (classInfo != null)
+            {
+                IL2Property property = classInfo.GetProperty(name);
+                if (property != null)
+                {
+                    return property;
+                }
+                classInfo = classInfo.BaseType;
+            }
+            return null;
+        }
+
+        static object GetPropertyValue(IntPtr component, IL2Property property)
+        {
+            IL2Object value = property.GetGetMethod().Invoke(component);
+            if (value == null)
+            {
+                return null;
+            }
+
+            string typeName = property.GetGetMethod().ReturnType.Name;
+            switch (typeName)
+            {
+                case "System.String": return value.GetValueObj<string>();
+                case "System.Boolean": return value.GetValueRef<bool>();
+                case "System.Int32": return value.GetValueRef<int>();
+                case "System.Single": return value.GetValueRef<float>();
+                case "UnityEngine.Vector2": return ToDictionary(value.GetValueRef<Vector2>());
+                case "UnityEngine.Color": return ToDictionary(value.GetValueRef<Color>());
+                case "UnityEngine.RenderMode":
+                case "UnityEngine.UI.CanvasScaler+ScaleMode":
+                case "UnityEngine.UI.CanvasScaler+ScreenMatchMode": return value.GetValueRef<int>();
+            }
+
+            if (typeName == "UnityEngine.Sprite")
+            {
+                return new Dictionary<string, object> { { "name", UnityObject.GetName(value.ptr) } };
+            }
+            return null;
+        }
+
+        static Dictionary<string, object> ToDictionary(Vector2 value)
+        {
+            return new Dictionary<string, object> { { "x", value.x }, { "y", value.y } };
+        }
+
+        static Dictionary<string, object> ToDictionary(Vector3 value)
+        {
+            return new Dictionary<string, object> { { "x", value.x }, { "y", value.y }, { "z", value.z } };
+        }
+
+        static Dictionary<string, object> ToDictionary(Color value)
+        {
+            return new Dictionary<string, object>
+            {
+                { "r", value.r },
+                { "g", value.g },
+                { "b", value.b },
+                { "a", value.a },
+            };
+        }
     }
 
     unsafe static class Component
@@ -2834,5 +3009,19 @@ namespace UnityEngine
             this.y = y;
             this.z = z;
         }
+    }
+
+    struct Vector2
+    {
+        public float x;
+        public float y;
+    }
+
+    struct Color
+    {
+        public float r;
+        public float g;
+        public float b;
+        public float a;
     }
 }
