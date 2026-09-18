@@ -165,6 +165,7 @@
     <Compile Include="YgoMasterServer\YdkHelper.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Docs\ConsoleCommands.md" />
     <None Include="YgoMasterClient\app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

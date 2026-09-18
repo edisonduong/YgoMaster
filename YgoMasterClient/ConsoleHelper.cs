@@ -37,9 +37,79 @@ namespace YgoMasterClient
 
         unsafe static void HandleCommand(string consoleInput)
         {
+            Console.WriteLine("[Console] Received command: " + consoleInput);
             string[] splitted = consoleInput.Split();
             switch (splitted[0].ToLower())
             {
+                case "classes":
+                    {
+                        string filter = null;
+                        if (splitted.Length > 1)
+                            filter = splitted[1];
+
+                        IL2Assembly assembly = Assembler.GetAssembly("Assembly-CSharp");
+                        if (assembly == null)
+                        {
+                            Console.WriteLine("Assembly-CSharp not found");
+                            break;
+                        }
+
+                        StringBuilder sb = new StringBuilder();
+                        foreach (IL2Class classInfo in assembly.GetClasses().OrderBy(x => x.FullNameEx))
+                        {
+                            if (!string.IsNullOrEmpty(filter))
+                            {
+                                if (!(classInfo.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                      (!string.IsNullOrEmpty(classInfo.Namespace) && classInfo.Namespace.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                      classInfo.FullNameEx.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+                                {
+                                    continue;
+                                }
+                            }
+
+                            sb.AppendLine(classInfo.FullNameEx + " | Namespace=" + (classInfo.Namespace ?? "") + " | Enum=" + classInfo.IsEnum + " | Abstract=" + classInfo.IsAbstract + " | Methods=" + classInfo.GetMethods().Length + " | Fields=" + classInfo.GetFields().Length);
+                        }
+
+                        string path = Path.Combine(Program.ClientDataDir, "AssemblyClasses.txt");
+                        try
+                        {
+                            File.WriteAllText(path, sb.ToString());
+                            Console.WriteLine("Wrote assembly class list to: " + path);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Failed to write class list: " + ex);
+                        }
+                    }
+                    break;
+                case "hierarchy":
+                    {
+                        IntPtr manager = YgomSystem.UI.ViewControllerManager.LastViewControllerManager;
+                        if (manager == IntPtr.Zero)
+                        {
+                            Console.WriteLine("No view controller manager has been loaded yet.");
+                            break;
+                        }
+
+                        IntPtr viewController = YgomSystem.UI.ViewControllerManager.GetStackTopViewController(manager);
+                        if (viewController == IntPtr.Zero)
+                        {
+                            Console.WriteLine("No active view controller was found.");
+                            break;
+                        }
+
+                        IntPtr viewObject = UnityEngine.Component.GetGameObject(viewController);
+                        if (viewObject == IntPtr.Zero)
+                        {
+                            Console.WriteLine("The last loaded view controller has no GameObject.");
+                            break;
+                        }
+
+                        string path = Path.Combine(Program.ClientDataDir, "CurrentHierarchy.json");
+                        File.WriteAllText(path, UnityEngine.GameObject.DumpFromRoot(viewObject));
+                        Console.WriteLine("Wrote current hierarchy to: " + path);
+                    }
+                    break;
                 case "itemid":// Creates json for values in IDS_ITEM (all item ids)
                     {
                         // TODO: Get the exact values from internal data rather than probing by id (NOTE: Can't really do this as keys are a CRC32)
