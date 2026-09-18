@@ -36,6 +36,49 @@ namespace YgoMasterClient
         }
     }
 
+    static class HookUtils
+    {
+        public static Hook<T> TryHook<T>(T hook, string className, string namespaze, string methodName)
+        {
+            return TryHook(hook, className, namespaze, methodName, null);
+        }
+
+        public static Hook<T> TryHook<T>(T hook, string className, string namespaze, string methodName, Func<IL2Method, bool> methodPredicate)
+        {
+            if (Program.IsLive)
+            {
+                return null;
+            }
+
+            try
+            {
+                IL2Assembly assembly = Assembler.GetAssembly("Assembly-CSharp");
+                if (assembly == null)
+                {
+                    return null;
+                }
+
+                IL2Class classInfo = assembly.GetClass(className, namespaze);
+                if (classInfo == null)
+                {
+                    return null;
+                }
+
+                IL2Method method = methodPredicate == null ? classInfo.GetMethod(methodName) : classInfo.GetMethod(methodName, methodPredicate);
+                if (method == null)
+                {
+                    return null;
+                }
+
+                return new Hook<T>(hook, method);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
     class PInvoke
     {
         const string dllName = "YgoMasterLoader.dll";

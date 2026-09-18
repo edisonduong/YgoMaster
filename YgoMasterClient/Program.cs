@@ -29,6 +29,44 @@ namespace YgoMasterClient
         public static NetClient NetClient;
         public static bool IsMonoRun;
 
+        static int GetPluginLoadPriority(string file)
+        {
+            string name = Path.GetFileNameWithoutExtension(file);
+            if (string.IsNullOrEmpty(name))
+            {
+                return int.MaxValue;
+            }
+            if (name.Equals("0Harmony", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+            if (name.IndexOf("UniverseLib", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return 1;
+            }
+            if (name.IndexOf("UnityExplorer", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return 2;
+            }
+            return 10;
+        }
+
+        static void LoadPlugins()
+        {
+            string pluginsDir = Path.Combine(CurrentDir, "Plugins");
+            if (!Directory.Exists(pluginsDir))
+            {
+                return;
+            }
+            foreach (string file in Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories)
+                .OrderBy(GetPluginLoadPriority)
+                .ThenBy(x => Path.GetFileName(x), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                PInvoke.LoadLibrary(file);
+            }
+        }
+
         static void Main(string[] args)
         {
             bool isMultiplayerClient = false;
@@ -203,14 +241,7 @@ namespace YgoMasterClient
                     }
                 }
 
-                string pluginsDir = Path.Combine(CurrentDir, "Plugins");
-                if (Directory.Exists(pluginsDir))
-                {
-                    foreach (string file in Directory.GetFiles(pluginsDir, "*.dll"))
-                    {
-                        PInvoke.LoadLibrary(file);
-                    }
-                }
+                LoadPlugins();
 
                 if (ClientSettings.ReflectionValidatorDump)
                 {
@@ -351,6 +382,7 @@ namespace YgoMasterClient
                 nativeTypes.Add(typeof(HomeViewTweaks));
                 // Colosseum view tweaks: static constructor will install hooks for Colosseum UI
                 nativeTypes.Add(typeof(ColosseumViewTweaks));
+                nativeTypes.Add(typeof(TitleViewTweaks));
                 nativeTypes.Add(typeof(FixDeleteFile));
                 nativeTypes.Add(typeof(FixLanguage));
                 nativeTypes.Add(typeof(SoundInterceptor));

@@ -26,18 +26,8 @@ namespace YgoMasterClient
 
         static HomeViewTweaks()
         {
-            if (Program.IsLive)
-            {
-                return;
-            }
-
-            IL2Assembly assembly = Assembler.GetAssembly("Assembly-CSharp");
-
-            IL2Class headerClass = assembly.GetClass("HeaderViewController", "YgomGame.Menu");
-            hookUpdateDispPart = new Hook<Del_UpdateDispPart>(UpdateDispPart, headerClass.GetMethod("UpdateDispPart"));
-
-            IL2Class homeViewClass = assembly.GetClass("HomeViewController", "YgomGame.Menu");
-            hookUpdateHome = new Hook<Del_UpdateHome>(UpdateHome, homeViewClass.GetMethod("UpdateHome"));
+            hookUpdateDispPart = HookUtils.TryHook<Del_UpdateDispPart>(UpdateDispPart, "HeaderViewController", "YgomGame.Menu", "UpdateDispPart");
+            hookUpdateHome = HookUtils.TryHook<Del_UpdateHome>(UpdateHome, "HomeViewController", "YgomGame.Menu", "UpdateHome");
         }
 
         static void UpdateDispPart(IntPtr thisPtr, int part)
@@ -278,13 +268,10 @@ namespace YgoMasterClient
 
         static void DisableObject(IntPtr obj, string path)
         {
-            IntPtr ptr = GameObject.FindGameObjectByPath(obj, path);
-            if (ptr == IntPtr.Zero)
+            if (!GameObjectCloneUtils.SetActive(obj, path, false))
             {
                 Console.WriteLine("[HomeViewTweaks] Failed to find '" + path + "'");
-                return;
             }
-            GameObject.SetActive(ptr, false);
         }
     }
 }

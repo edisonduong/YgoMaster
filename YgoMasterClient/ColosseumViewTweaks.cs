@@ -26,37 +26,7 @@ namespace YgoMasterClient
 
         static ColosseumViewTweaks()
         {
-            if (Program.IsLive)
-            {
-                return;
-            }
-            try
-            {
-                IL2Assembly assembly = Assembler.GetAssembly("Assembly-CSharp");
-                if (assembly == null)
-                {
-                    return;
-                }
-
-                // Look up the primary Colosseum view controller and attach the hook
-                IL2Class colosseumViewClass = assembly.GetClass("ColosseumViewController", "YgomGame.Colosseum");
-                if (colosseumViewClass == null)
-                {
-                    return;
-                }
-
-                var method = colosseumViewClass.GetMethod("UpdateMenu");
-                if (method == null)
-                {
-                    return;
-                }
-
-                hookUpdateMenu = new Hook<Del_UpdateMenu>(UpdateMenu, method);
-            }
-            catch
-            {
-                return;
-            }
+            hookUpdateMenu = HookUtils.TryHook<Del_UpdateMenu>(UpdateMenu, "ColosseumViewController", "YgomGame.Colosseum", "UpdateMenu");
         }
 
         static void UpdateMenu(IntPtr thisPtr)
@@ -76,19 +46,9 @@ namespace YgoMasterClient
             IntPtr menuObject = Component.GetGameObject(thisPtr);
             const string parentPath = "ColosseumUI(Clone).Root.RootMenu.GroupLeft.MenuGroup";
 
-            IntPtr menuContainer = GameObjectCloneUtils.Find(menuObject, parentPath);
-            if (menuContainer == IntPtr.Zero)
-            {
-                return;
-            }
-            // Hide all buttons in the ButtonArea by disabling all child game objects
             try
             {
-                List<IntPtr> children = GameObject.GetChildren(menuContainer);
-                foreach (IntPtr child in children)
-                {
-                    GameObject.SetActive(child, false);
-                }
+                GameObjectCloneUtils.SetChildrenActive(menuObject, parentPath, false);
             }
             catch
             {
@@ -112,18 +72,9 @@ namespace YgoMasterClient
                 IntPtr label = GameObjectCloneUtils.Find(menuContainer, "Label");
                 IntPtr eventScrollView = GameObjectCloneUtils.Find(menuContainer, "Infinity Vertical Single Scroll View");
 
-                if (emptyEvents != IntPtr.Zero)
-                {
-                    GameObject.SetActive(emptyEvents, true);
-                }
-                if (label != IntPtr.Zero)
-                {
-                    GameObject.SetActive(label, false);
-                }
-                if (eventScrollView != IntPtr.Zero)
-                {
-                    GameObject.SetActive(eventScrollView, false);
-                }
+                GameObjectCloneUtils.SetActive(emptyEvents, true);
+                GameObjectCloneUtils.SetActive(label, false);
+                GameObjectCloneUtils.SetActive(eventScrollView, false);
 
                 if (lastMenuObject != menuObject)
                 {
@@ -144,19 +95,9 @@ namespace YgoMasterClient
             IntPtr menuObject = Component.GetGameObject(thisPtr);
             const string parentPath = "ColosseumUI(Clone).Root.TitleArea.ButtonArea";
 
-            IntPtr menuContainer = GameObjectCloneUtils.Find(menuObject, parentPath);
-            if (menuContainer == IntPtr.Zero)
-            {
-                return;
-            }
-            // Hide all buttons in the ButtonArea by disabling all child game objects
             try
             {
-                List<IntPtr> children = GameObject.GetChildren(menuContainer);
-                foreach (IntPtr child in children)
-                {
-                    GameObject.SetActive(child, false);
-                }
+                GameObjectCloneUtils.SetChildrenActive(menuObject, parentPath, false);
             }
             catch
             {
