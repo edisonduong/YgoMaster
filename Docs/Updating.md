@@ -95,7 +95,7 @@ These values need to be updated on client updates if you use PvP. See [UpdatingP
 
 ## Enabling the client console
 
-- In `ClientSettings.json` set `ShowConsole` to `true` and run the YgoMasterClient.
+- Build and run the `Debug` configuration of YgoMasterClient. The debug tools panel opens automatically in Debug builds.
 - You will probably want to inject into the live version of the game while doing this. See [LiveMods.md](LiveMods.md). This is a requirement if you want to complete solo with the `AlwaysWin` setting.
 
 ## Client updates

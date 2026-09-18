@@ -182,10 +182,6 @@ namespace YgoMasterClient
                 {
                     throw new Exception("Failed to get server url settings");
                 }
-                if (ClientSettings.ShowConsole)
-                {
-                    ConsoleHelper.ShowConsole();
-                }
 
                 ClientSettings.InstantDuel = false;
                 string arg_cl = Environment.CommandLine;
@@ -424,10 +420,9 @@ namespace YgoMasterClient
                     AssetHelper.Init();
                 });
 
-                if (ClientSettings.ShowConsole)
-                {
-                    ConsoleHelper.Run();
-                }
+                #if DEBUG
+                DebugToolsGui.Show();
+#endif
             }
             catch (Exception e)
             {

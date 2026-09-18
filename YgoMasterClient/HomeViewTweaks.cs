@@ -21,8 +21,8 @@ namespace YgoMasterClient
 
         delegate void Del_UpdateHome(IntPtr thisPtr);
         static Hook<Del_UpdateHome> hookUpdateHome;
-        static bool dumpedHomeHierarchy;
         static IntPtr movedTopics;
+        static IntPtr lastHomeObject;
 
         static HomeViewTweaks()
         {
@@ -75,15 +75,7 @@ namespace YgoMasterClient
             hookUpdateHome.Original(thisPtr);
             YgomSystem.Utility.ClientWork.DeleteByJsonPath("$.Certification");
 
-            if (!dumpedHomeHierarchy)
-            {
-                dumpedHomeHierarchy = true;
-                IntPtr homeObject = Component.GetGameObject(thisPtr);
-                string hierarchy = GameObject.DumpFromRoot(homeObject);
-                string path = Path.Combine(Program.ClientDataDir, "HomeHierarchy.json");
-                File.WriteAllText(path, hierarchy);
-                Console.WriteLine("[HomeViewTweaks] Wrote hierarchy to: " + path);
-            }
+            lastHomeObject = Component.GetGameObject(thisPtr);
 
             if (AssetHelper.IsQuitting)
             {
@@ -154,6 +146,22 @@ namespace YgoMasterClient
                 Action = ShowTestButton
             }
         };
+
+        /// <summary>
+        /// Dumps the last seen home UI hierarchy to disk. Intended to be triggered via the "dumphome" console command.
+        /// </summary>
+        public static void DumpHomeHierarchy()
+        {
+            if (lastHomeObject == IntPtr.Zero)
+            {
+                Console.WriteLine("[HomeViewTweaks] No home object available to dump yet");
+                return;
+            }
+            string hierarchy = GameObject.DumpFromRoot(lastHomeObject);
+            string path = Path.Combine(Program.ClientDataDir, "HomeHierarchy.json");
+            File.WriteAllText(path, hierarchy);
+            Console.WriteLine("[HomeViewTweaks] Wrote hierarchy to: " + path);
+        }
 
         static void AddHomeButtons(IntPtr thisPtr)
         {

@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="YgoMasterClient\ColosseumViewTweaks.cs" />
+    <Compile Include="YgoMasterClient\DebugToolsForm.cs" />
     <Compile Include="YgoMasterClient\DuelTutorialSetting.cs" />
     <Compile Include="YgoMasterClient\FixDeleteFile.cs" />
     <Compile Include="YgoMasterClient\GameObjectCloneUtils.cs" />
