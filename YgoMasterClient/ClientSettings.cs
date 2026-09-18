@@ -25,7 +25,6 @@ namespace YgoMasterClient
         public static bool MultiplayerNoDelay;
         public static bool MultiplayerLogConnectionState;
         public static string ClientSettingsTextFile;
-        public static bool ShowConsole;
         public static bool LogIDs;
         public static bool AssetHelperLog;
         public static bool AssetHelperDump;
@@ -150,7 +149,6 @@ namespace YgoMasterClient
             MultiplayerNoDelay = Utils.GetValue<bool>(data, "MultiplayerNoDelay");
             MultiplayerLogConnectionState = Utils.GetValue<bool>(data, "MultiplayerLogConnectionState");
             ClientSettingsTextFile = Utils.GetValue<string>(data, "ClientSettingsTextFile");
-            ShowConsole = Utils.GetValue<bool>(data, "ShowConsole");
             LogIDs = Utils.GetValue<bool>(data, "LogIDs");
             AssetHelperLog = Utils.GetValue<bool>(data, "AssetHelperLog");
             AssetHelperDump = Utils.GetValue<bool>(data, "AssetHelperDump");

@@ -13,4 +13,4 @@ Without any specialized tools it's possible to:
 
 There are currently issues with the custom content loader. It eats ram with larger images and slows down the game while loading (no async loading).
 
-An alternative to this is manually creating unity files and placing them in the right location. Setting `ShowConsole` / `AssetHelperLog` to true in `ClientSettings.json` can be used to find files, and the command `crc` to locate where a file should be placed on disk from it's input path. `AssetHelperDump` will also dump image files into `/Data/ClientDataDump/` as they are loaded.
+An alternative to this is manually creating unity files and placing them in the right location. Running a `Debug` build (for the debug tools panel) and setting `AssetHelperLog` to true in `ClientSettings.json` can be used to find files, and the command `crc` to locate where a file should be placed on disk from it's input path. `AssetHelperDump` will also dump image files into `/Data/ClientDataDump/` as they are loaded.

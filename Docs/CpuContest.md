@@ -13,7 +13,7 @@ Create `/Data/CpuContest/ContestSettings.json` with the following settings:
 `instances` should match your CPU core count (or be slightly higher than it).
 
 - Create `/Data/CpuContest/Decks` and copy all of the decks you want to rank into the folder.
-- In `ClientSettings.json` set `ShowConsole` to `true` and run the client.
+- Build and run the `Debug` configuration of the client. The debug tools panel opens automatically in Debug builds.
 - In the client console run `carddata` which should create `/Data/ClientDataDump/Card/Data/{CLIENT_VERSION}/`, move and rename the `{CLIENT_VERSION}` folder to `/Data/CardData/`.
 - Run `YgoMaster --cpucontest`.
 
