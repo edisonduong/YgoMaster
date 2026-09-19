@@ -5,8 +5,16 @@ This document lists the console commands implemented in YgoMasterClient and a sh
 - classes [filter]
   - Dumps Assembly-CSharp classes to ClientData/AssemblyClasses.txt. Optional filter restricts results.
 
+- methods <ClassName|FullName> [Namespace]
+  - Dumps methods/signatures for matching Assembly-CSharp class(es) to ClientData/ClassMethods-<ClassName>.txt.
+  - Example: methods TitleViewController YgomGame.Title
+
 - hierarchy
   - Dumps the current active view controller's GameObject hierarchy to ClientData/CurrentHierarchy.json.
+
+- dumpassets
+  - Dumps tracked raw native asset request paths to ClientData/LoadedAssets.txt.
+  - This is based on asset paths seen by the client's ResourceManager load hooks.
 
 - itemid [dumpInvalid?]
   - Creates JSON/text files for values in IDS_ITEM and related text groups.
