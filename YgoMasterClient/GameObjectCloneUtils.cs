@@ -37,10 +37,104 @@ namespace YgoMasterClient
             return GameObject.FindGameObjectByName(parent, name, false, false);
         }
 
+        public static bool SetActive(IntPtr gameObject, bool active)
+        {
+            if (gameObject == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            GameObject.SetActive(gameObject, active);
+            return true;
+        }
+
+        public static bool SetActive(IntPtr root, string path, bool active)
+        {
+            return SetActive(Find(root, path), active);
+        }
+
+        public static int SetChildrenActive(IntPtr parent, bool active)
+        {
+            if (parent == IntPtr.Zero)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            foreach (IntPtr child in GameObject.GetChildren(parent))
+            {
+                GameObject.SetActive(child, active);
+                count++;
+            }
+            return count;
+        }
+
+        public static int SetChildrenActive(IntPtr root, string path, bool active)
+        {
+            return SetChildrenActive(Find(root, path), active);
+        }
+
         public static IntPtr Clone(IntPtr root, string templatePath, string parentPath, string cloneName)
         {
             IntPtr template = Find(root, templatePath);
             IntPtr parent = Find(root, parentPath);
+            return Clone(template, parent, cloneName);
+        }
+
+        public static IntPtr Clone(IntPtr root, string templatePath, string cloneName)
+        {
+            IntPtr template = Find(root, templatePath);
+            if (template == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            return Clone(template, GameObject.GetParentObject(template), cloneName);
+        }
+
+        public static IntPtr Clone(IntPtr root, string templatePath)
+        {
+            IntPtr template = Find(root, templatePath);
+            if (template == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            return Clone(template, GameObject.GetParentObject(template), UnityObject.GetName(template) + "Clone");
+        }
+
+        public static IntPtr CloneIfMissing(IntPtr root, string templatePath, string cloneName)
+        {
+            IntPtr template = Find(root, templatePath);
+            if (template == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            IntPtr parent = GameObject.GetParentObject(template);
+            if (parent == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            IntPtr existingClone = FindChild(parent, cloneName);
+            return existingClone != IntPtr.Zero ? existingClone : Clone(template, parent, cloneName);
+        }
+
+        public static IntPtr CloneIfMissing(IntPtr root, string templatePath, string parentPath, string cloneName)
+        {
+            IntPtr parent = Find(root, parentPath);
+            if (parent == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            IntPtr existingClone = FindChild(parent, cloneName);
+            return existingClone != IntPtr.Zero ? existingClone : Clone(root, templatePath, parentPath, cloneName);
+        }
+
+        public static IntPtr Clone(IntPtr template, IntPtr parent, string cloneName)
+        {
             if (template == IntPtr.Zero || parent == IntPtr.Zero)
             {
                 return IntPtr.Zero;
@@ -72,17 +166,16 @@ namespace YgoMasterClient
             return Transform.GetLocalPosition(GameObject.GetTransform(gameObject));
         }
 
-        public static void SetText(IntPtr root, string path, string text)
+        public static void SetText(IntPtr gameObject, string text)
         {
-            IntPtr textObject = Find(root, path);
-            if (textObject == IntPtr.Zero)
+            if (gameObject == IntPtr.Zero)
             {
                 return;
             }
 
             if (bindingTextType != IntPtr.Zero)
             {
-                IntPtr bindingText = GameObject.GetComponent(textObject, bindingTextType);
+                IntPtr bindingText = GameObject.GetComponent(gameObject, bindingTextType);
                 if (bindingText != IntPtr.Zero)
                 {
                     YgomSystem.UI.BindingTextMeshProUGUI.SetTextId(bindingText, text);
@@ -91,12 +184,17 @@ namespace YgoMasterClient
 
             if (extendedTextType != IntPtr.Zero)
             {
-                IntPtr textComponent = GameObject.GetComponent(textObject, extendedTextType);
+                IntPtr textComponent = GameObject.GetComponent(gameObject, extendedTextType);
                 if (textComponent != IntPtr.Zero)
                 {
                     TMPro.TMP_Text.SetText(textComponent, text);
                 }
             }
+        }
+
+        public static void SetText(IntPtr root, string path, string text)
+        {
+            SetText(Find(root, path), text);
         }
 
         public static void ReplaceSelectionButtonAction(IntPtr gameObject, Action action)

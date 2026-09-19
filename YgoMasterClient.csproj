@@ -55,6 +55,7 @@
     <Compile Include="YgoMasterClient\DuelTutorialSetting.cs" />
     <Compile Include="YgoMasterClient\FixDeleteFile.cs" />
     <Compile Include="YgoMasterClient\GameObjectCloneUtils.cs" />
+    <Compile Include="YgoMasterClient\NativeAssetUtils.cs" />
     <Compile Include="YgoMasterClient\HomeViewTweaks.cs" />
     <Compile Include="YgoMasterClient\CustomBackground.cs" />
     <Compile Include="YgoMasterClient\AudioLoader.cs" />
@@ -68,6 +69,7 @@
     <Compile Include="YgoMasterClient\SoloVisualNovel.cs" />
     <Compile Include="YgoMasterClient\SoloVisualNovelChapterView.cs" />
     <Compile Include="YgoMasterClient\SoundInterceptor.cs" />
+    <Compile Include="YgoMasterClient\TitleViewTweaks.cs" />
     <Compile Include="YgoMasterClient\TradeUtils.cs" />
     <Compile Include="YgoMasterClient\ClientSettings.Text.cs" />
     <Compile Include="YgoMasterClient\DuelDll.cs" />
