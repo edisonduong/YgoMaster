@@ -81,6 +81,18 @@ namespace YgoMasterClient
             return Clone(template, parent, cloneName);
         }
 
+        public static IntPtr CloneChild(IntPtr root, string parentPath, string templateChildName, string cloneName)
+        {
+            IntPtr parent = Find(root, parentPath);
+            if (parent == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            IntPtr template = FindChild(parent, templateChildName);
+            return Clone(template, parent, cloneName);
+        }
+
         public static IntPtr Clone(IntPtr root, string templatePath, string cloneName)
         {
             IntPtr template = Find(root, templatePath);
