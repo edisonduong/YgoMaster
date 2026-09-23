@@ -15,6 +15,8 @@ namespace YgoMaster
         public Player Owner;
 
         public bool Disbanded;
+        public bool IsMatchmaking;
+        public readonly Dictionary<Player, int> PreviousRoomDeckIds = new Dictionary<Player, int>();
 
         public int MemberCount
         {

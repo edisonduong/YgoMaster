@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -74,7 +74,8 @@ namespace YgoMaster
                     {
                         if (generalUpdateStopwatch.ElapsedMilliseconds >= 10000)
                         {
-                            lock (duelRoomsLocker)
+                            UpdateMatchmaking();
+                            lock (matchmakingLock)
                             {
                                 foreach (DuelRoom duelRoom in GetDuelRoomsByRoomId().Values)
                                 {
@@ -413,13 +414,25 @@ namespace YgoMaster
                                         Act_RoomGetList(gameServerWebRequest);
                                         break;
                                     case "Room.room_entry":
-                                        Act_RoomEntry(gameServerWebRequest);
+                                        lock (matchmakingLock)
+                                        {
+                                            matchmakingQueue.RemoveAll(x => x.Player == gameServerWebRequest.Player);
+                                            Act_RoomEntry(gameServerWebRequest);
+                                        }
                                         break;
                                     case "Room.room_exit":
-                                        Act_RoomExit(gameServerWebRequest);
+                                        lock (matchmakingLock)
+                                        {
+                                            matchmakingQueue.RemoveAll(x => x.Player == gameServerWebRequest.Player);
+                                            Act_RoomExit(gameServerWebRequest);
+                                        }
                                         break;
                                     case "Room.room_create":
-                                        Act_RoomCreate(gameServerWebRequest);
+                                        lock (matchmakingLock)
+                                        {
+                                            matchmakingQueue.RemoveAll(x => x.Player == gameServerWebRequest.Player);
+                                            Act_RoomCreate(gameServerWebRequest);
+                                        }
                                         break;
                                     case "Room.room_table_polling":
                                         Act_RoomTablePolling(gameServerWebRequest);
@@ -450,6 +463,12 @@ namespace YgoMaster
                                         break;
                                     case "PvP.watch_duel":
                                         Act_RoomWatchDuel(gameServerWebRequest, false);
+                                        break;
+                                    case "Matchmaking.check":
+                                    case "Matchmaking.join":
+                                    case "Matchmaking.poll":
+                                    case "Matchmaking.cancel":
+                                        Act_Matchmaking(gameServerWebRequest);
                                         break;
                                     case "DuelMenu.deck_check":
                                         Act_DuelMenuDeckCheck(gameServerWebRequest);
