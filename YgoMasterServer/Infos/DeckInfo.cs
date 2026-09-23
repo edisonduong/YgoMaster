@@ -129,8 +129,8 @@ namespace YgoMaster
             }
 
             // TODO: Handle "require" / "card_pool" (currently unused by official regulations)
-            Dictionary<string, object> availableData = Utils.GetDictionary(regulationData, "available");
-            Dictionary<string, object> requireData = Utils.GetDictionary(regulationData, "require");
+            Dictionary<string, object> availableData = Utils.GetDictionary(regulationData, "available") ?? new Dictionary<string, object>();
+            Dictionary<string, object> requireData = Utils.GetDictionary(regulationData, "require") ?? new Dictionary<string, object>();
             List<int> cardPool = Utils.GetValueTypeList<int>(regulationData, "card_pool");
 
             List<int> r1 = Utils.GetValueTypeList<int>(requireData, "r1");
@@ -150,7 +150,7 @@ namespace YgoMaster
             };
 
             Dictionary<int, int> cards = new Dictionary<int, int>();
-            IEnumerable<int>[] collections = { MainDeckCards.GetIds(), ExtraDeckCards.GetIds() };
+            IEnumerable<int>[] collections = { MainDeckCards.GetIds(), ExtraDeckCards.GetIds(), SideDeckCards.GetIds() };
             foreach (IEnumerable<int> collection in collections)
             {
                 foreach (int id in collection)
@@ -159,7 +159,10 @@ namespace YgoMaster
                     {
                         cards[id] = 0;
                     }
-                    cards[id]++;
+                    if (++cards[id] > 3)
+                    {
+                        return false;
+                    }
                 }
             }
 
