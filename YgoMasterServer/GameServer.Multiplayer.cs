@@ -89,7 +89,13 @@ namespace YgoMaster
             {
                 foreach (Player player in duelRoom.Members.Keys)
                 {
-                    player.DuelRoom = null;
+                    if (player.DuelRoom == duelRoom)
+                    {
+                        player.DuelRoom = null;
+                        int previousDeck;
+                        if (duelRoom.PreviousRoomDeckIds.TryGetValue(player, out previousDeck))
+                            player.Duel.SetDeckId(GameMode.Room, previousDeck);
+                    }
                 }
                 foreach (Player player in duelRoom.Spectators)
                 {

@@ -13,6 +13,224 @@ namespace YgoMaster
 {
     partial class GameServer
     {
+        sealed class MatchmakingEntry
+        {
+            public Player Player;
+            public int DeckId;
+            public int RegulationId;
+            public string ClientVersion;
+            public DateTime Joined;
+            public DateTime Heartbeat;
+        }
+
+        // List order is the admission order, unaffected by repeat joins or heartbeats.
+        readonly object matchmakingLock = new object();
+        readonly List<MatchmakingEntry> matchmakingQueue = new List<MatchmakingEntry>();
+        static readonly TimeSpan MatchmakingTimeout = TimeSpan.FromSeconds(45);
+
+        string MatchmakingValidation(Player player, int regulationId)
+        {
+            if (!MultiplayerEnabled) return "Matchmaking requires multiplayer mode.";
+            if (player.NetClient == null || !player.NetClient.IsConnected) return "Connect to the session server before searching.";
+            if (regulationId <= 0 || Regulation == null || Utils.GetDictionary(Regulation, regulationId.ToString()) == null)
+                return "The standard regulation is unavailable.";
+            DeckInfo deck = player.Duel.GetDeck(GameMode.Rank);
+            if (deck == null) return "Select a standard deck before searching.";
+            // Public matchmaking always enforces legality, even on sandbox servers.
+            if (!deck.IsValid(player, regulationId, Regulation))
+                return "Invalid deck: use 40-60 main cards, at most 15 extra and 15 side cards, owned copies, and legal card limits.";
+            if (!File.Exists(Pvp.DllName) || !File.Exists(Path.Combine(dataDirectory, "CardData", "#", "CARD_IntID.bytes")))
+                return "The server is missing required PvP files.";
+            return null;
+        }
+
+        void UpdateMatchmaking()
+        {
+            lock (matchmakingLock)
+            {
+                DateTime now = DateTime.UtcNow;
+                matchmakingQueue.RemoveAll(x => now - x.Heartbeat >= MatchmakingTimeout ||
+                    x.Player.DuelRoom != null || x.Player.Duel.GetDeckId(GameMode.Rank) != x.DeckId ||
+                    MatchmakingValidation(x.Player, x.RegulationId) != null);
+
+                // Reclaim abandoned startup rooms, but never interrupt an active duel.
+                foreach (DuelRoom room in GetDuelRoomsByRoomId().Values)
+                {
+                    if (!room.IsMatchmaking) continue;
+                    DuelRoomTable table = room.Tables[0];
+                    bool completed = table.Rewards.Player1Rewards != null && table.Rewards.Player2Rewards != null;
+                    bool abandonedStartup = (table.State != DuelRoomTableState.Dueling || !table.HasBeginDuel) &&
+                        now - room.TimeCreated >= TimeSpan.FromSeconds(Math.Max(60, DuelRoomTableMatchingTimeoutInSeconds));
+                    if (completed || abandonedStartup) DisbandRoom(room);
+                }
+            }
+        }
+
+        void Act_Matchmaking(GameServerWebRequest request)
+        {
+            lock (matchmakingLock)
+            {
+                UpdateMatchmaking();
+                Player player = request.Player;
+                Dictionary<string, object> data = request.GetOrCreateDictionary("Matchmaking");
+                data["state"] = "idle";
+                data["position"] = 0;
+                data["wait_seconds"] = 0;
+                data["estimated_wait_seconds"] = null; // No fabricated estimate without population history.
+                data["error"] = "";
+                data["valid"] = false;
+                DuelRoom room = player.DuelRoom;
+                if (request.ActName == "Matchmaking.cancel")
+                {
+                    matchmakingQueue.RemoveAll(x => x.Player == player);
+                    if (room != null && room.IsMatchmaking && room.Tables[0].State != DuelRoomTableState.Dueling)
+                    {
+                        DisbandRoom(room);
+                        request.Remove("Room.room_info", "Duel");
+                    }
+                    return;
+                }
+                if (room != null)
+                {
+                    if (room.IsMatchmaking)
+                    {
+                        data["state"] = "matched";
+                        WriteMatchmakingStart(request);
+                    }
+                    else data["error"] = "Leave your current duel room before searching.";
+                    return;
+                }
+                int regulationId = DeckInfo.DefaultRegulationId;
+                string error = MatchmakingValidation(player, regulationId);
+                data["valid"] = error == null;
+                if (error != null)
+                {
+                    matchmakingQueue.RemoveAll(x => x.Player == player);
+                    data["error"] = error;
+                    return;
+                }
+                if (request.ActName == "Matchmaking.check") return;
+
+                MatchmakingEntry entry = matchmakingQueue.Find(x => x.Player == player);
+                if (entry == null && request.ActName == "Matchmaking.join")
+                {
+                    ClearSpectatingDuel(player);
+                    entry = new MatchmakingEntry { Player = player, DeckId = player.Duel.GetDeckId(GameMode.Rank),
+                        RegulationId = regulationId, ClientVersion = request.ClientVersion,
+                        Joined = DateTime.UtcNow, Heartbeat = DateTime.UtcNow };
+                    matchmakingQueue.Add(entry);
+                }
+                if (entry == null)
+                {
+                    data["error"] = "Search expired or your deck changed. Please search again.";
+                    return;
+                }
+                entry.Heartbeat = DateTime.UtcNow;
+                for (int i = 0; i < matchmakingQueue.Count; i++)
+                {
+                    MatchmakingEntry first = matchmakingQueue[i];
+                    MatchmakingEntry second = matchmakingQueue.Skip(i + 1).FirstOrDefault(x =>
+                        x.RegulationId == first.RegulationId && x.ClientVersion == first.ClientVersion);
+                    if (second == null) continue;
+                    try
+                    {
+                        StartMatchmakingRoom(first, second);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.LogWarning("[Matchmaking] " + ex.Message);
+                        matchmakingQueue.Remove(first);
+                        matchmakingQueue.Remove(second);
+                        data["error"] = "Unable to start the match. Please search again.";
+                        return;
+                    }
+                    matchmakingQueue.Remove(second);
+                    matchmakingQueue.Remove(first);
+                    i--;
+                }
+                if (player.DuelRoom != null)
+                {
+                    data["state"] = "matched";
+                    WriteMatchmakingStart(request);
+                }
+                else
+                {
+                    data["state"] = "searching";
+                    data["position"] = matchmakingQueue.TakeWhile(x => x != entry).Count(x =>
+                        x.RegulationId == entry.RegulationId && x.ClientVersion == entry.ClientVersion) + 1;
+                    data["wait_seconds"] = (int)(DateTime.UtcNow - entry.Joined).TotalSeconds;
+                }
+            }
+        }
+
+        void WriteMatchmakingStart(GameServerWebRequest request)
+        {
+            // Supply the loading screen's player/accessory data, without opening a lobby.
+            Act_DuelMatching(request);
+            if (request.ResultCode != 0) return;
+            Dictionary<string, object> duel = request.GetOrCreateDictionary("Duel");
+            foreach (KeyValuePair<string, object> item in new DuelSettings().ToDictionaryForSoloStart())
+                if (!duel.ContainsKey(item.Key)) duel[item.Key] = item.Value;
+            duel["GameMode"] = (int)GameMode.Room;
+            request.Remove("Room.room_info");
+        }
+
+        bool SelectMatchmakingTurn(DuelRoom room, DuelRoomTable table, Player player, int select)
+        {
+            lock (table.Entries)
+            {
+                if (!room.IsMatchmaking || room.Disbanded || !table.IsMatched) return false;
+                if (select < 0 || select > 1 || table.Entries[table.CoinFlipPlayerIndex].Player != player) return false;
+                int firstPlayer = player == table.Player1 ? select : 1 - select;
+                // Retries may acknowledge the same choice, never reverse it.
+                if (table.State == DuelRoomTableState.Dueling) return table.FirstPlayer == firstPlayer;
+                if (table.State != DuelRoomTableState.Matched) return false;
+                return table.InitDuel(firstPlayer);
+            }
+        }
+
+        void StartMatchmakingRoom(MatchmakingEntry first, MatchmakingEntry second)
+        {
+            GameServerWebRequest setup = new GameServerWebRequest { Player = first.Player, ClientVersion = first.ClientVersion,
+                Response = new Dictionary<string, object>(), ActParams = new Dictionary<string, object> {
+                    { "room_settings", new Dictionary<string, object> {
+                        { "member_max", 2 }, { "battle_rule", first.RegulationId }, { "battle_lp", 1 }, { "battle_time", 1 }
+                    } }
+                } };
+            Act_RoomCreate(setup);
+            DuelRoom room = first.Player.DuelRoom;
+            if (room == null || setup.ResultCode != 0) throw new InvalidOperationException("Unable to create matchmaking room");
+            room.IsMatchmaking = true;
+            try
+            {
+                lock (room.MembersLocker)
+                {
+                    room.Members.Add(second.Player, new DuelRoomRecord());
+                    second.Player.DuelRoom = room;
+                }
+                foreach (MatchmakingEntry entry in new[] { first, second })
+                {
+                    room.PreviousRoomDeckIds[entry.Player] = entry.Player.Duel.GetDeckId(GameMode.Room);
+                    entry.Player.Duel.SetDeckId(GameMode.Room, entry.DeckId);
+                    room.Tables[0].AddPlayer(entry.Player);
+                }
+                foreach (MatchmakingEntry entry in new[] { first, second })
+                {
+                    setup.Player = entry.Player;
+                    setup.ActParams = new Dictionary<string, object> { { "isBattleReady", true } };
+                    Act_RoomBattleReady(setup);
+                    if (setup.ResultCode != 0) throw new InvalidOperationException("Unable to ready matchmaking players");
+                }
+                room.Tables[0].MatchedTime = DateTime.UtcNow;
+                room.Tables[0].State = DuelRoomTableState.Matched;
+            }
+            catch
+            {
+                DisbandRoom(room);
+                throw;
+            }
+        }
+
         void Act_RoomGetList(GameServerWebRequest request)
         {
             if (!MultiplayerEnabled)
@@ -132,6 +350,15 @@ namespace YgoMaster
 
             lock (duelRoom.MembersLocker)
             {
+                if (duelRoom.IsMatchmaking)
+                {
+                    // Reopening the native room screen must not unseat a matched player.
+                    if (isSpectator || !duelRoom.Members.ContainsKey(request.Player))
+                        request.ResultCode = (int)ResultCodes.RoomCode.ERR_ENTRY_FAILED;
+                    else
+                        WriteRoomInfo(request, duelRoom);
+                    return;
+                }
                 if ((isSpectator && duelRoom.Members.ContainsKey(request.Player)) ||
                     (!isSpectator && duelRoom.Spectators.Contains(request.Player)))
                 {
@@ -202,7 +429,7 @@ namespace YgoMaster
             DuelRoom currentDuelRoom = request.Player.DuelRoom;
             if (currentDuelRoom != null)
             {
-                if (currentDuelRoom.Owner == request.Player)
+                if (currentDuelRoom.Owner == request.Player || currentDuelRoom.IsMatchmaking)
                 {
                     DisbandRoom(currentDuelRoom);
                 }
@@ -326,6 +553,12 @@ namespace YgoMaster
             ClearSpectatingDuel(request.Player);
 
             DuelRoom duelRoom = request.Player.DuelRoom;
+            if (duelRoom != null && duelRoom.IsMatchmaking && duelRoom.GetTable(request.Player) != null)
+            {
+                // The native screen may repeat arrival while opening the allocated table.
+                WriteRoomInfo(request, duelRoom);
+                return;
+            }
             if (duelRoom == null)
             {
                 request.ResultCode = (int)ResultCodes.RoomCode.ERR_INVALID_ROOM;
@@ -775,7 +1008,8 @@ namespace YgoMaster
                 }
                 DeckInfo d1 = p1.Duel.GetDeck(GameMode.Room);
                 DeckInfo d2 = p2.Duel.GetDeck(GameMode.Room);
-                if (d1 == null || d2 == null)
+                if (d1 == null || d2 == null || (duelRoom.IsMatchmaking &&
+                    (!d1.IsValid(p1, duelRoom.Rule, Regulation) || !d2.IsValid(p2, duelRoom.Rule, Regulation))))
                 {
                     Utils.LogWarning("[Act_DuelMatching] d1 == null || d2 == null");
                     request.ResultCode = (int)ResultCodes.PvPCode.INVALID_DECK;
@@ -791,7 +1025,8 @@ namespace YgoMaster
                 }
 
                 DuelRoomTableState state = table.State;
-                if (state != DuelRoomTableState.P1StandingBy && state != DuelRoomTableState.P2StandingBy && state != DuelRoomTableState.Matched)
+                if (state != DuelRoomTableState.P1StandingBy && state != DuelRoomTableState.P2StandingBy && state != DuelRoomTableState.Matched &&
+                    !(duelRoom.IsMatchmaking && state == DuelRoomTableState.Dueling))
                 {
                     Utils.LogWarning("[Act_DuelMatching] state != DuelRoomTableState.P1StandingBy && state != DuelRoomTableState.P2StandingBy && state != DuelRoomTableState.Matched");
                     request.ResultCode = (int)ResultCodes.PvPCode.NOT_FIND_OPPONENT;
@@ -800,7 +1035,7 @@ namespace YgoMaster
 
                 if (table.IsMatched)
                 {
-                    if (state != DuelRoomTableState.Matched)
+                    if (state == DuelRoomTableState.P1StandingBy || state == DuelRoomTableState.P2StandingBy)
                     {
                         table.MatchedTime = DateTime.UtcNow;
                         table.State = DuelRoomTableState.Matched;
@@ -882,6 +1117,17 @@ namespace YgoMaster
 
         void Act_DuelMatchingCancel(GameServerWebRequest request)
         {
+            lock (matchmakingLock)
+            {
+                matchmakingQueue.RemoveAll(x => x.Player == request.Player);
+                DuelRoom matchRoom = request.Player.DuelRoom;
+                if (matchRoom != null && matchRoom.IsMatchmaking && matchRoom.Tables[0].State != DuelRoomTableState.Dueling)
+                {
+                    DisbandRoom(matchRoom);
+                    request.Remove("Room.room_info", "Duel");
+                    return;
+                }
+            }
             if (!MultiplayerEnabled)
             {
                 return;
@@ -980,12 +1226,20 @@ namespace YgoMaster
                         request.ResultCode = (int)ResultCodes.PvPCode.NOT_FIND_OPPONENT;
                         return;
                     }
-                    firstPlayer = rand.Next(2);
-                    if (!table.InitDuel(firstPlayer))
+                    lock (table.Entries)
                     {
-                        Utils.LogWarning("[Act_DuelStartWating] !table.InitDuel(firstPlayer)");
-                        request.ResultCode = (int)ResultCodes.PvPCode.NOT_FIND_OPPONENT;
-                        return;
+                        // A choice can arrive while this polling request sleeps.
+                        // Never overwrite a choice that won that race.
+                        firstPlayer = table.FirstPlayer;
+                        if (firstPlayer < 0)
+                        {
+                            firstPlayer = rand.Next(2);
+                            if (!table.InitDuel(firstPlayer))
+                            {
+                                request.ResultCode = (int)ResultCodes.PvPCode.NOT_FIND_OPPONENT;
+                                return;
+                            }
+                        }
                     }
                 }
                 if (firstPlayer >= 0)
@@ -1064,6 +1318,13 @@ namespace YgoMaster
             }
 
             int select = Utils.GetValue<int>(request.ActParams, "select");
+            if (duelRoom.IsMatchmaking)
+            {
+                if (!Utils.TryGetValue(request.ActParams, "select", out select) ||
+                    !SelectMatchmakingTurn(duelRoom, table, request.Player, select))
+                    request.ResultCode = (int)ResultCodes.PvPCode.INVALID_PARAM;
+                return;
+            }
             if (select >= 0 && select <= 1)
             {
                 if (request.Player != p1)
@@ -1135,7 +1396,8 @@ namespace YgoMaster
 
             DeckInfo d1 = p1.Duel.GetDeck(GameMode.Room);
             DeckInfo d2 = p2.Duel.GetDeck(GameMode.Room);
-            if (d1 == null || d2 == null)
+            if (d1 == null || d2 == null || (duelRoom.IsMatchmaking &&
+                (!d1.IsValid(p1, duelRoom.Rule, Regulation) || !d2.IsValid(p2, duelRoom.Rule, Regulation))))
             {
                 Utils.LogWarning("[Act_DuelBeginPvp] d1 == null || d2 == null");
                 request.ResultCode = (int)ResultCodes.PvPCode.INVALID_DECK;
