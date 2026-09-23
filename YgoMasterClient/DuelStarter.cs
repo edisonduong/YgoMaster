@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -2201,7 +2201,7 @@ namespace YgomSystem.UI
             }
         }
 
-        static Action OpenRoomMenu = () =>
+        public static void OpenRoomMenu()
         {
             IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
             if (manager != IntPtr.Zero)
@@ -2227,7 +2227,7 @@ namespace YgomSystem.UI
                         OnClickRoomMatchMenuItem);
                 }
             }
-        };
+        }
 
         static Action<IntPtr, int> OnClickRoomMatchMenuItem = OnClickRoomMatchMenuItemImpl;
         static void OnClickRoomMatchMenuItemImpl(IntPtr ctx, int index)
@@ -2256,7 +2256,7 @@ namespace YgomSystem.UI
             }
         }
 
-        static Action OpenDuelStarterMenu = () =>
+        public static void OpenDuelStarterMenu()
         {
             IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
             if (manager != IntPtr.Zero)
@@ -2264,7 +2264,7 @@ namespace YgomSystem.UI
                 YgomGame.Room.RoomCreateViewController.IsNextInstanceHacked = true;
                 PushChildViewController(manager, "Room/RoomCreate");
             }
-        };
+        }
     }
 
     static unsafe class BindingTextMeshProUGUI

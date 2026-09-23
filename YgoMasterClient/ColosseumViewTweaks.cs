@@ -13,8 +13,7 @@ namespace YgoMasterClient
         delegate void Del_UpdateMenu(IntPtr thisPtr);
         static Hook<Del_UpdateMenu> hookUpdateMenu;
         static IntPtr controller;
-        static IntPtr boundFind;
-        static IntPtr boundDeck;
+        static readonly HashSet<IntPtr> boundTiles = new HashSet<IntPtr>();
         static bool searching;
         static bool valid;
         static bool pending;
@@ -26,6 +25,8 @@ namespace YgoMasterClient
         const string ButtonArea = "ColosseumUI(Clone).Root.TitleArea.ButtonArea";
         static readonly Action findAction = FindMatch;
         static readonly Action deckAction = SelectDeck;
+        static readonly Action roomAction = OpenRoom;
+        static readonly Action soloAction = OpenSolo;
         static IL2Method setInteractable;
         static IntPtr selectionButtonType;
 
@@ -49,10 +50,11 @@ namespace YgoMasterClient
             if (AssetHelper.IsQuitting) return;
             if (controller != thisPtr)
             {
-                boundFind = IntPtr.Zero;
-                boundDeck = IntPtr.Zero;
+                boundTiles.Clear();
             }
             controller = thisPtr;
+            // The native menu refresh may restore its own click listeners.
+            boundTiles.Clear();
             valid = false;
             nextPoll = DateTime.MinValue;
             Render();
@@ -126,6 +128,18 @@ namespace YgoMasterClient
                 new Dictionary<string, object> { { "GameMode", (int)GameMode.Rank } });
         }
 
+        static void OpenRoom()
+        {
+            if (!searching && !pending && !IsStartingDuel)
+                YgomSystem.UI.ViewControllerManager.OpenRoomMenu();
+        }
+
+        static void OpenSolo()
+        {
+            if (!searching && !pending && !IsStartingDuel)
+                YgomSystem.UI.ViewControllerManager.OpenDuelStarterMenu();
+        }
+
         public static void OnNetworkComplete(string command, int code)
         {
             if (command == "Duel.end") IsStartingDuel = false;
@@ -195,45 +209,63 @@ namespace YgoMasterClient
             if (button != IntPtr.Zero) setInteractable.Invoke(button, new[] { new IntPtr(&enabled) });
         }
 
+        static IntPtr BindTile(IntPtr root, string path, string label, Action action, bool enabled)
+        {
+            IntPtr tile = GameObjectCloneUtils.Find(root, path);
+            if (tile == IntPtr.Zero) return tile;
+            GameObjectCloneUtils.SetActive(tile, true);
+            GameObjectCloneUtils.SetText(tile, "Mask.Header.TextName", label);
+            if (boundTiles.Add(tile)) GameObjectCloneUtils.ReplaceSelectionButtonAction(tile, action);
+            SetEnabled(tile, enabled);
+            return tile;
+        }
+
         static void Render()
         {
             if (!IsVisible()) return;
             IntPtr root = Component.GetGameObject(controller);
-            GameObjectCloneUtils.SetChildrenActive(root, "ColosseumUI(Clone).Root.RootMenu.GroupLeft.MenuGroup", false);
-            IntPtr area = GameObjectCloneUtils.Find(root, ButtonArea);
-            if (area == IntPtr.Zero) return;
-            IntPtr find = GameObjectCloneUtils.FindChild(area, "ButtonWCS");
-            IntPtr deck = GameObjectCloneUtils.CloneIfMissing(root, ButtonArea + ".ButtonWCS", "ButtonMatchmakingDeck");
-            GameObjectCloneUtils.SetActive(find, true);
-            GameObjectCloneUtils.SetActive(deck, true);
+            const string menu = "ColosseumUI(Clone).Root.RootMenu.GroupLeft.MenuGroup";
+            GameObjectCloneUtils.SetActive(root, menu + ".RootRank", true);
+            GameObjectCloneUtils.SetActive(root, menu + ".RootRank.RootTemplate", true);
+            GameObjectCloneUtils.SetActive(root, menu + ".RootRank.RootTemplate.Template", true);
+            GameObjectCloneUtils.SetText(root, menu + ".RootRank.Label.Text", "Matchmaking");
+            IntPtr ranked = BindTile(root, menu + ".RootRank.RootTemplate.Template.ButtonRankMatch",
+                searching ? "Cancel Search" : "Find Match", findAction,
+                !IsStartingDuel && (searching || (valid && !pending)));
+            if (ranked != IntPtr.Zero)
+            {
+                GameObjectCloneUtils.SetText(ranked, "Mask.Header.TextTitle", "Standard Deck");
+                GameObjectCloneUtils.SetText(ranked, "Mask.Main.TextRank", "PvP");
+                GameObjectCloneUtils.SetActive(ranked, "Mask.Footer.StateArea.StateBefore", false);
+                GameObjectCloneUtils.SetActive(ranked, "Mask.Footer.StateArea.StateAfter", false);
+                GameObjectCloneUtils.SetActive(ranked, "Mask.Footer.StateArea.StateOpen", true);
+                GameObjectCloneUtils.SetText(ranked, "Mask.Footer.StateArea.StateOpen.TextStateOpen",
+                    searching ? "Searching..." : valid ? "Ready" : "Check your deck");
+                GameObjectCloneUtils.SetText(ranked, "Mask.Footer.StateArea.InfoArea.TextInfo", "");
+    
+                }
+
+            // Some client layouts put Room on the large tile, others put Team there.
+            // Use one layout and bind the buttons by their existing names in either position.
+            string free = menu + ".RootFree";
+            if (GameObjectCloneUtils.Find(root, free) == IntPtr.Zero) free = menu + ".RootFree (1)";
+            else GameObjectCloneUtils.SetActive(root, menu + ".RootFree (1)", false);
+            GameObjectCloneUtils.SetActive(root, free, true);
+            GameObjectCloneUtils.SetActive(root, free + ".CasualMatchSubGroup", true);
+            GameObjectCloneUtils.SetText(root, free + ".Label.Text", "Duel Options");
+            bool canNavigate = !searching && !pending && !IsStartingDuel;
+            foreach (string parent in new[] { free, free + ".CasualMatchSubGroup" })
+            {
+                IntPtr room = BindTile(root, parent + ".ButtonRoomMatch", "Duel Room (PvP)", roomAction, canNavigate);
+                if (room != IntPtr.Zero) GameObjectCloneUtils.SetText(room, "Mask.Main.RoomMatchStateBase.RoomMatchStateText", "Create or join a room");
+                IntPtr solo = BindTile(root, parent + ".ButtonFree", "Duel Starter (PvE)", soloAction, canNavigate);
+                if (solo != IntPtr.Zero) GameObjectCloneUtils.SetText(solo, "Mask.Main.FreeMatchStateBase.Text", "Play against the CPU");
+                IntPtr deck = BindTile(root, parent + ".ButtonTeam", "Select Standard Deck", deckAction, canNavigate);
+                if (deck != IntPtr.Zero) GameObjectCloneUtils.SetText(deck, "Mask.Main.TeamMatchStateBase.Text", "Choose your matchmaking deck");
+            }
+            GameObjectCloneUtils.SetActive(root, ButtonArea + ".ButtonWCS", false);
+            GameObjectCloneUtils.SetActive(root, ButtonArea + ".ButtonMatchmakingDeck", false);
             GameObjectCloneUtils.SetActive(root, ButtonArea + ".SeasonPointButton", false);
-            foreach (IntPtr button in new[] { find, deck })
-            {
-                if (button == IntPtr.Zero) continue;
-                GameObjectCloneUtils.SetActive(button, "Viewport", false);
-                GameObjectCloneUtils.SetActive(button, "NumBadge", false);
-                GameObjectCloneUtils.SetActive(button, "IconArea.IconGroup", false);
-            }
-            if (find != IntPtr.Zero)
-            {
-                GameObjectCloneUtils.SetText(find, "IconArea.TextEntry", searching ? "Cancel Search" : "Find Match");
-                if (boundFind != find)
-                {
-                    GameObjectCloneUtils.ReplaceSelectionButtonAction(find, findAction);
-                    boundFind = find;
-                }
-                SetEnabled(find, searching || (valid && !pending));
-            }
-            if (deck != IntPtr.Zero)
-            {
-                GameObjectCloneUtils.SetText(deck, "IconArea.TextEntry", "Select Standard Deck");
-                if (boundDeck != deck)
-                {
-                    GameObjectCloneUtils.ReplaceSelectionButtonAction(deck, deckAction);
-                    boundDeck = deck;
-                }
-                SetEnabled(deck, !searching && !pending);
-            }
             const string events = "ColosseumUI(Clone).Root.RootMenu.RootEvents";
             GameObjectCloneUtils.SetActive(root, events + ".EmptyEvents", true);
             GameObjectCloneUtils.SetActive(root, events + ".Label", false);
