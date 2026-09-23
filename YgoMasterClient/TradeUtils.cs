@@ -65,6 +65,7 @@ namespace YgoMasterClient
         static void Update(IntPtr thisPtr)
         {
             hookUpdate.Original(thisPtr);
+            ColosseumViewTweaks.Update();
             AssetHelper.Update();
             DuelEmoteHelper.Update();
             YgomGame.Tutorial.CardFlyingViewController.Update();

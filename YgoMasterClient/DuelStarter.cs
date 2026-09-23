@@ -417,6 +417,7 @@ namespace YgomSystem.Network
                 }
 
                 YgomGame.Menu.ProfileReplayViewController.OnNetworkComplete(thisPtr, cmd);
+                ColosseumViewTweaks.OnNetworkComplete(cmd, fieldCode.GetValue(thisPtr).GetValueRef<int>());
 
                 if (YgomGame.Room.RoomCreateViewController.IsHacked || YgomGame.Room.RoomCreateViewController.HasInstantDuelStarted)
                 {
@@ -2110,12 +2111,15 @@ namespace YgomSystem.UI
                     }
                     else
                     {
-                        YgomGame.Menu.CommonDialogViewController.OpenYesNoConfirmationDialog(
+                        YgomGame.Menu.ActionSheetViewController.Open(
                             ClientSettings.CustomTextDuelStarterPveOrPvpTitle,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpText,
-                            OpenDuelStarterMenu, OpenRoomMenu, null,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE,
-                            ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP);
+                            new string[]
+                            {
+                                "Find Match",
+                                ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvP,
+                                ClientSettings.CustomTextDuelStarterPveOrPvpTextBtnPvE
+                            },
+                            OnClickDuelMenuItem);
                         return;
                     }
                 }
@@ -2170,6 +2174,31 @@ namespace YgomSystem.UI
         {
             IL2Object result = methodGetStackTopViewController.Invoke(thisPtr);
             return result != null ? result.ptr : IntPtr.Zero;
+        }
+
+        // CreateAction<int> calls the raw method pointer, so this must be a static
+        // method group. A compiler-generated lambda can introduce a hidden this arg.
+        static readonly Action<IntPtr, int> OnClickDuelMenuItem = OnClickDuelMenuItemImpl;
+        static void OnClickDuelMenuItemImpl(IntPtr ctx, int index)
+        {
+            switch (index)
+            {
+                case 0:
+                    IntPtr manager = YgomGame.Menu.ContentViewControllerManager.GetManager();
+                    if (manager != IntPtr.Zero)
+                    {
+                        // Bypass our home-Duel redirect so this opens the matchmaking UI
+                        // instead of recursively showing the same action sheet.
+                        hookPushChildViewController.Original(manager, new IL2String("Colosseum/Colosseum").ptr);
+                    }
+                    break;
+                case 1:
+                    OpenRoomMenu();
+                    break;
+                case 2:
+                    OpenDuelStarterMenu();
+                    break;
+            }
         }
 
         static Action OpenRoomMenu = () =>
