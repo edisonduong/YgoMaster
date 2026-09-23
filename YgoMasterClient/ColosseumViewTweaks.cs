@@ -242,7 +242,7 @@ namespace YgoMasterClient
                 GameObjectCloneUtils.SetText(ranked, "Mask.Footer.StateArea.StateOpen.TextStateOpen",
                     searching ? "Searching..." : valid ? "Ready" : "Check your deck");
                 GameObjectCloneUtils.SetText(ranked, "Mask.Footer.StateArea.InfoArea.TextInfo", "");
-    
+
                 }
 
             // Some client layouts put Room on the large tile, others put Team there.
